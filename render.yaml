@@ -16,7 +16,7 @@ services:
   - type: web
     name: stylesathi-frontend
     env: node
-    buildCommand: cd styleSathi && npm ci && npm run build
+    buildCommand: cd styleSathi && npm install && npm run build
     startCommand: cd styleSathi && npx serve -s dist -l $PORT
     autoDeploy: true
     envVars:
