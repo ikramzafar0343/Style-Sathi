@@ -320,65 +320,89 @@ class AdminDashboardView(APIView):
             { 'label': 'Error Rate', 'value': '0.1%', 'icon': 'error', 'color': 'text-success' },
             { 'label': 'Active Sessions', 'value': str(total_users), 'icon': 'usercheck', 'color': 'text-success' },
         ]
+        def fmt_time(dt):
+            if not dt:
+                return ''
+            try:
+                return timezone.localtime(dt).strftime('%I:%M %p')
+            except Exception:
+                try:
+                    return dt.strftime('%I:%M %p')
+                except Exception:
+                    return ''
         recent_activities = []
-        latest_orders = Order.objects.order_by('-created_at')[:3]
-        for o in latest_orders:
-            recent_activities.append({
-                'id': f'ORD-{o.id:04d}',
-                'time': o.created_at.strftime('%I:%M %p'),
-                'action': 'Order Created',
-                'user': o.user.email,
-                'status': o.status.title(),
-                'statusColor': 'badge bg-info',
-                'type': 'order_created',
-                'details': {
-                    'fullName': o.user.get_full_name() or o.user.username,
-                    'email': o.user.email,
-                    'phone': o.user.phone or '',
-                    'username': o.user.username,
-                    'role': o.user.role,
-                    'registrationDate': (o.user.date_joined.date().isoformat() if o.user.date_joined else ''),
-                    'productDetails': {}
-                }
-            })
-        latest_users = User.objects.filter(is_active=True).order_by('-date_joined')[:2]
-        for u in latest_users:
-            recent_activities.append({
-                'id': f'USR-{u.id:04d}',
-                'time': timezone.localtime(u.date_joined).strftime('%I:%M %p') if u.date_joined else '',
-                'action': 'User Registered',
-                'user': u.email,
-                'status': 'New',
-                'statusColor': 'badge bg-warning',
-                'type': 'user_registered',
-                'details': {
-                    'fullName': u.get_full_name() or u.username,
-                    'email': u.email,
-                    'phone': u.phone or '',
-                    'username': u.username,
-                    'role': u.role,
-                    'registrationDate': (u.date_joined.date().isoformat() if u.date_joined else '')
-                }
-            })
+        try:
+            latest_orders = Order.objects.order_by('-created_at')[:3]
+            for o in latest_orders:
+                recent_activities.append({
+                    'id': f'ORD-{o.id:04d}',
+                    'time': fmt_time(o.created_at),
+                    'action': 'Order Created',
+                    'user': getattr(o.user, 'email', ''),
+                    'status': (o.status.title() if getattr(o, 'status', None) else ''),
+                    'statusColor': 'badge bg-info',
+                    'type': 'order_created',
+                    'details': {
+                        'fullName': (o.user.get_full_name() or o.user.username) if getattr(o, 'user', None) else '',
+                        'email': getattr(o.user, 'email', ''),
+                        'phone': getattr(o.user, 'phone', '') or '',
+                        'username': getattr(o.user, 'username', ''),
+                        'role': getattr(o.user, 'role', ''),
+                        'registrationDate': (o.user.date_joined.date().isoformat() if getattr(o.user, 'date_joined', None) else ''),
+                        'productDetails': {}
+                    }
+                })
+        except Exception:
+            pass
+        try:
+            latest_users = User.objects.filter(is_active=True).order_by('-date_joined')[:2]
+            for u in latest_users:
+                recent_activities.append({
+                    'id': f'USR-{u.id:04d}',
+                    'time': fmt_time(u.date_joined),
+                    'action': 'User Registered',
+                    'user': u.email,
+                    'status': 'New',
+                    'statusColor': 'badge bg-warning',
+                    'type': 'user_registered',
+                    'details': {
+                        'fullName': u.get_full_name() or u.username,
+                        'email': u.email,
+                        'phone': u.phone or '',
+                        'username': u.username,
+                        'role': u.role,
+                        'registrationDate': (u.date_joined.date().isoformat() if u.date_joined else '')
+                    }
+                })
+        except Exception:
+            pass
         notifications = []
-        if latest_orders:
-            notifications.append({
-                'id': 'admin-notif-orders',
-                'type': 'orders',
-                'title': 'New Orders',
-                'message': f'{latest_orders.count()} new orders created',
-                'time': 'just now',
-                'read': False
-            })
-        if latest_users:
-            notifications.append({
-                'id': 'admin-notif-users',
-                'type': 'users',
-                'title': 'New Users',
-                'message': f'{latest_users.count()} users registered',
-                'time': 'just now',
-                'read': False
-            })
+        try:
+            latest_orders_check = Order.objects.order_by('-created_at')[:3]
+            if latest_orders_check:
+                notifications.append({
+                    'id': 'admin-notif-orders',
+                    'type': 'orders',
+                    'title': 'New Orders',
+                    'message': f'{len(latest_orders_check)} new orders created',
+                    'time': 'just now',
+                    'read': False
+                })
+        except Exception:
+            pass
+        try:
+            latest_users_check = User.objects.filter(is_active=True).order_by('-date_joined')[:2]
+            if latest_users_check:
+                notifications.append({
+                    'id': 'admin-notif-users',
+                    'type': 'users',
+                    'title': 'New Users',
+                    'message': f'{len(latest_users_check)} users registered',
+                    'time': 'just now',
+                    'read': False
+                })
+        except Exception:
+            pass
         return Response({
             'keyMetrics': key_metrics,
             'systemHealth': system_health,
