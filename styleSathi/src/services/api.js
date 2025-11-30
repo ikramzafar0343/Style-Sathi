@@ -1,10 +1,11 @@
+const baseOverride = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || '';
 const host = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_HOST) 
   || (typeof window !== 'undefined' && window.location && window.location.hostname) 
   || 'localhost';
 const normalizedHost = (!host || host === '0.0.0.0' || host === '::') ? 'localhost' : host;
 const port = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) || '8000';
 const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
-const BASE_URL = `${protocol}://${normalizedHost}:${port}/api`;
+const BASE_URL = baseOverride || `${protocol}://${normalizedHost}:${port}/api`;
 
 const json = async (url, options = {}) => {
   const resp = await fetch(url, {
