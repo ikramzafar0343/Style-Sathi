@@ -1,0 +1,20 @@
+# Python backend
+backend/venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/static/uploads/
+backend/node_modules/
+backend/**/.cache/
+**/.cache/
+
+# Node frontend build artifacts
+node_modules/
+styleSathi/node_modules/
+styleSathi/dist/
+styleSathi/dist-ssr/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
