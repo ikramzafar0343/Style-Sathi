@@ -305,21 +305,34 @@ class AdminDashboardView(APIView):
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        total_users = User.objects.filter(is_active=True).count()
-        total_products = Product.objects.count()
-        total_orders = Order.objects.count()
-        key_metrics = [
-            { 'label': 'Total Users', 'value': str(total_users), 'icon': 'users', 'color': 'bg-primary' },
-            { 'label': 'Pending Actions', 'value': '0', 'icon': 'check', 'color': 'bg-warning' },
-            { 'label': 'Active Reports', 'value': '0', 'icon': 'flag', 'color': 'bg-danger' },
-            { 'label': 'System Health', 'value': '99%', 'icon': 'chart', 'color': 'bg-success' },
-        ]
-        system_health = [
-            { 'label': 'Server Status', 'value': 'Operational', 'icon': 'server', 'color': 'text-success' },
-            { 'label': 'API Performance', 'value': '99%', 'icon': 'trend', 'color': 'text-success' },
-            { 'label': 'Error Rate', 'value': '0.1%', 'icon': 'error', 'color': 'text-success' },
-            { 'label': 'Active Sessions', 'value': str(total_users), 'icon': 'usercheck', 'color': 'text-success' },
-        ]
+        try:
+            total_users = 0
+            total_products = 0
+            total_orders = 0
+            try:
+                total_users = User.objects.filter(is_active=True).count()
+            except Exception:
+                total_users = 0
+            try:
+                total_products = Product.objects.count()
+            except Exception:
+                total_products = 0
+            try:
+                total_orders = Order.objects.count()
+            except Exception:
+                total_orders = 0
+            key_metrics = [
+                { 'label': 'Total Users', 'value': str(total_users), 'icon': 'users', 'color': 'bg-primary' },
+                { 'label': 'Pending Actions', 'value': '0', 'icon': 'check', 'color': 'bg-warning' },
+                { 'label': 'Active Reports', 'value': '0', 'icon': 'flag', 'color': 'bg-danger' },
+                { 'label': 'System Health', 'value': '99%', 'icon': 'chart', 'color': 'bg-success' },
+            ]
+            system_health = [
+                { 'label': 'Server Status', 'value': 'Operational', 'icon': 'server', 'color': 'text-success' },
+                { 'label': 'API Performance', 'value': '99%', 'icon': 'trend', 'color': 'text-success' },
+                { 'label': 'Error Rate', 'value': '0.1%', 'icon': 'error', 'color': 'text-success' },
+                { 'label': 'Active Sessions', 'value': str(total_users), 'icon': 'usercheck', 'color': 'text-success' },
+            ]
         def fmt_time(dt):
             if not dt:
                 return ''
@@ -403,12 +416,19 @@ class AdminDashboardView(APIView):
                 })
         except Exception:
             pass
-        return Response({
-            'keyMetrics': key_metrics,
-            'systemHealth': system_health,
-            'recentActivities': recent_activities,
-            'notifications': notifications
-        })
+            return Response({
+                'keyMetrics': key_metrics,
+                'systemHealth': system_health,
+                'recentActivities': recent_activities,
+                'notifications': notifications
+            })
+        except Exception:
+            return Response({
+                'keyMetrics': [],
+                'systemHealth': [],
+                'recentActivities': [],
+                'notifications': []
+            })
 
 class AdminAnalyticsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
