@@ -86,6 +86,10 @@ const HomePage = ({
     }
   };
 
+  const openAIStudio = () => {
+    if (typeof onNavigateToAIStudio === 'function') onNavigateToAIStudio();
+  };
+
   const renderStars = (rating) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -552,6 +556,17 @@ const HomePage = ({
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* AI Try-On Section */}
+      <section className="py-5 bg-light">
+        <div className="container">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h4 className="mb-0">AI Try-On Studio</h4>
+            <button className="btn btn-primary" onClick={openAIStudio}>Open Studio</button>
+          </div>
+          <p className="text-muted">Experiment with makeup, jewelry, and accessories using your camera. Powered by Mediapipe + Gemini + Groq.</p>
         </div>
       </section>
 

@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'catalog',
     'cart',
     'orders',
+    'ai',
 ]
 
 MIDDLEWARE = [
@@ -138,3 +139,5 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')

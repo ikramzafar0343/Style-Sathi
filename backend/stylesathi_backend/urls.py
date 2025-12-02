@@ -8,5 +8,5 @@ urlpatterns = [
     path('api/cart/', include('cart.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/profile/', include('users.profile_urls')),
+    path('api/ai/', include('ai.urls')),
 ]
-

@@ -14,6 +14,7 @@ import CheckoutPage from './components/CheckoutPage';
 import OrderConfirmationPage from './components/OrderConfirmationPage';
 import TrackOrderPage from './components/TrackOrderPage';
 import ARProductViewer from './components/ARProductViewerPage';
+import TryOnStudio from './components/TryOnStudio';
 import CustomerAccountSetting from './components/CustomerAccountSetting';
 
 // Seller Components
@@ -250,6 +251,10 @@ const App = () => {
       }
     }
     setCurrentPage('ar-product-viewer');
+  };
+
+  const navigateToAIStudio = () => {
+    setCurrentPage('tryon-studio');
   };
 
   const navigateToCustomerAccountSettings = () =>
@@ -612,6 +617,7 @@ const App = () => {
             onNavigateToAccountSettings={navigateToCustomerAccountSettings}
             onNavigateToProductDetail={navigateToProductDetail}
             onNavigateToAR={navigateToAR}
+            onNavigateToAIStudio={navigateToAIStudio}
             onAddToCart={handleAddToCart}
             onLogout={handleLogout}
             currentUser={currentUser}
@@ -719,6 +725,13 @@ const App = () => {
             onNavigateToAccountSettings={navigateToCustomerAccountSettings}
             onLogout={handleLogout}
             currentUser={currentUser}
+          />
+        );
+      case 'tryon-studio':
+        return (
+          <TryOnStudio
+            token={authTokens?.access}
+            onBack={navigateToHome}
           />
         );
       case 'customer-account-settings':
