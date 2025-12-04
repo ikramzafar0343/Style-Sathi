@@ -62,7 +62,9 @@ class ProductSerializer(serializers.ModelSerializer):
         # Save image file to static uploads if provided
         if image is not None:
             try:
-                uploads_dir = os.path.join(settings.BASE_DIR, 'static', 'uploads')
+                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
+                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{Category.objects.count()}_{image.name}"
                 safe_path = os.path.join(uploads_dir, filename)
@@ -71,13 +73,14 @@ class ProductSerializer(serializers.ModelSerializer):
                         f.write(chunk)
                 validated_data['image_url'] = settings.STATIC_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
-                # Fallback to placeholder URL on any file I/O error
                 validated_data['image_url'] = settings.STATIC_URL.rstrip('/') + '/uploads/placeholder.png'
 
         # Save GLB file if provided
         if model_glb is not None:
             try:
-                uploads_dir = os.path.join(settings.BASE_DIR, 'static', 'uploads')
+                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
+                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{Category.objects.count()}_{model_glb.name}"
                 safe_path = os.path.join(uploads_dir, filename)
@@ -121,7 +124,9 @@ class ProductSerializer(serializers.ModelSerializer):
         # File updates
         if image is not None:
             try:
-                uploads_dir = os.path.join(settings.BASE_DIR, 'static', 'uploads')
+                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
+                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{instance.pk}_{image.name}"
                 safe_path = os.path.join(uploads_dir, filename)
@@ -133,7 +138,9 @@ class ProductSerializer(serializers.ModelSerializer):
                 pass
         if model_glb is not None:
             try:
-                uploads_dir = os.path.join(settings.BASE_DIR, 'static', 'uploads')
+                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
+                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{instance.pk}_{model_glb.name}"
                 safe_path = os.path.join(uploads_dir, filename)

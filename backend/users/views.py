@@ -55,15 +55,18 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.validated_data['user']
-            tokens = build_tokens(user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'tokens': tokens
-            }, status=status.HTTP_200_OK)
-        return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = LoginSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.validated_data['user']
+                tokens = build_tokens(user)
+                return Response({
+                    'user': UserSerializer(user).data,
+                    'tokens': tokens
+                }, status=status.HTTP_200_OK)
+            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({'detail': 'Login failed. Please try again later.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
