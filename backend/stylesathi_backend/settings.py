@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,7 +21,6 @@ INSTALLED_APPS = [
     'catalog',
     'cart',
     'orders',
-    'ai',
 ]
 
 MIDDLEWARE = [
@@ -57,7 +57,23 @@ WSGI_APPLICATION = 'stylesathi_backend.wsgi.application'
 
 DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite').lower()
 USE_DJONGO = os.environ.get('USE_DJONGO', 'False').lower() in ('1', 'true', 'yes')
-if DB_ENGINE == 'postgres':
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+# Prefer DATABASE_URL when present (Render/Postgres)
+if DATABASE_URL:
+    _url = urlparse(DATABASE_URL)
+    _name = (_url.path or '').lstrip('/')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': _name,
+            'USER': _url.username or '',
+            'PASSWORD': _url.password or '',
+            'HOST': _url.hostname or '127.0.0.1',
+            'PORT': str(_url.port or '5432'),
+        }
+    }
+elif DB_ENGINE == 'postgres':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -84,10 +100,14 @@ elif DB_ENGINE == 'mongodb' and USE_DJONGO:
         }
     }
 else:
+    _render_env = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+    _sqlite_path = os.environ.get('SQLITE_PATH')
+    if not _sqlite_path:
+        _sqlite_path = '/tmp/db.sqlite3' if _render_env else str(BASE_DIR / 'db.sqlite3')
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': _sqlite_path,
         }
     }
 

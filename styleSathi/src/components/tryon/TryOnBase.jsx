@@ -11,7 +11,7 @@ const TRACK_PARAMS = {
 };
 import styleSathiLogo from '../../assets/styleSathiLogo.svg';
 
-const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
+const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, width = 800, height = 450, makeupColors = { lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' }, makeupIntensity = { lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 }, applyMakeup = false }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webglCanvasRef = useRef(null);
@@ -44,6 +44,9 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
   const threeLoadedRef = useRef(false);
   const modelLoadedRef = useRef(false);
   const anchorRef = useRef({ x: 0, y: 0, s: 1, r: 0 });
+  const applyMakeupRef = useRef(false);
+  const makeupColorsRef = useRef(makeupColors);
+  const makeupIntensityRef = useRef(makeupIntensity);
 
   
 
@@ -59,13 +62,17 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
     return union > 0 ? inter / union : 0;
   };
 
+  useEffect(() => { applyMakeupRef.current = !!applyMakeup; }, [applyMakeup]);
+  useEffect(() => { makeupColorsRef.current = makeupColors || makeupColorsRef.current; }, [makeupColors]);
+  useEffect(() => { makeupIntensityRef.current = makeupIntensity || makeupIntensityRef.current; }, [makeupIntensity]);
+
   const loop = useCallback(async function tick(ts) {
     const v = videoRef.current;
     const c = canvasRef.current;
     const wc = webglCanvasRef.current;
     const o = overlayRef.current;
     if (v && c) {
-      if (faceMeshRef.current && mode === 'face') { try { await faceMeshRef.current.send({ image: v }); } catch { void 0; } }
+      if (faceMeshRef.current && (mode === 'face' || mode === 'makeup')) { try { await faceMeshRef.current.send({ image: v }); } catch { void 0; } }
       if (handsRef.current && mode === 'hand') { try { await handsRef.current.send({ image: v }); } catch { void 0; } }
       if (poseRef.current && (mode === 'feet' || mode === 'body')) { try { await poseRef.current.send({ image: v }); } catch { void 0; } }
       const ctx = c.getContext('2d');
@@ -92,7 +99,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
       const aspect = v.videoWidth && v.videoHeight ? v.videoWidth / v.videoHeight : 16 / 9;
       pc.width = TRACK_PARAMS.procWidth;
       pc.height = Math.max(90, Math.round(pc.width / aspect));
-      const pctx = pc.getContext('2d');
+      const pctx = pc.getContext('2d', { willReadFrequently: true });
       pctx.drawImage(v, 0, 0, pc.width, pc.height);
       const small = pctx.getImageData(0, 0, pc.width, pc.height);
       const prevSmall = prevFrameRef.current;
@@ -339,12 +346,106 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
         }
         threeRef.current.renderer.render(threeRef.current.scene, cam);
       }
-      
+
+      const lm = landmarksRef.current;
+      const hlm = handLmRef.current;
+      const plm = poseLmRef.current;
+      const fx = (x) => c.width - x;
+      if (mode === 'makeup' && lm && lm.length > 0) {
+        const drawEdges = (pairs, color, width) => {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width;
+          for (let i = 0; i < pairs.length; i++) {
+            const a = lm[pairs[i][0]]; const b = lm[pairs[i][1]];
+            if (!a || !b) continue;
+            ctx.beginPath();
+            ctx.moveTo(fx(a.x * c.width), a.y * c.height);
+            ctx.lineTo(fx(b.x * c.width), b.y * c.height);
+            ctx.stroke();
+          }
+        };
+        const toRgba = (hex, alpha) => {
+          const h = String(hex || '').replace('#','');
+          const r = parseInt(h.length===3 ? h[0]+h[0] : h.slice(0,2), 16);
+          const g = parseInt(h.length===3 ? h[1]+h[1] : h.slice(2,4), 16);
+          const b = parseInt(h.length===3 ? h[2]+h[2] : h.slice(4,6), 16);
+          const a = Math.max(0, Math.min(1, alpha));
+          return `rgba(${isFinite(r)?r:0},${isFinite(g)?g:0},${isFinite(b)?b:0},${a})`;
+        };
+        const fillRegion = (pairs, color, alpha) => {
+          const set = new Set();
+          for (let i = 0; i < pairs.length; i++) { set.add(pairs[i][0]); set.add(pairs[i][1]); }
+          const pts = Array.from(set).map(idx => lm[idx]).filter(Boolean).map(p => ({ x: fx(p.x * c.width), y: p.y * c.height }));
+          if (pts.length < 3) return;
+          const cx = pts.reduce((a,p)=>a+p.x,0)/pts.length;
+          const cy = pts.reduce((a,p)=>a+p.y,0)/pts.length;
+          pts.sort((a,b)=>Math.atan2(a.y-cy, a.x-cx) - Math.atan2(b.y-cy, b.x-cx));
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+          ctx.closePath();
+          ctx.fillStyle = toRgba(color, alpha);
+          ctx.fill();
+        };
+        const lips = (typeof window !== 'undefined' && window.FACEMESH_LIPS) ? window.FACEMESH_LIPS : [[61,146],[146,91],[91,181],[181,84],[84,17],[17,314],[314,405],[405,321],[321,375],[375,291],[291,308],[308,324],[324,318],[318,402],[402,317],[317,14],[14,87],[87,178],[178,88],[88,95],[95,61]];
+        const leftEye = (typeof window !== 'undefined' && window.FACEMESH_LEFT_EYE) ? window.FACEMESH_LEFT_EYE : [[33,7],[7,163],[163,144],[144,145],[145,153],[153,154],[154,155],[155,133],[133,33]];
+        const rightEye = (typeof window !== 'undefined' && window.FACEMESH_RIGHT_EYE) ? window.FACEMESH_RIGHT_EYE : [[263,249],[249,390],[390,373],[373,374],[374,380],[380,381],[381,382],[382,362],[362,263]];
+        const leftBrow = (typeof window !== 'undefined' && window.FACEMESH_LEFT_EYEBROW) ? window.FACEMESH_LEFT_EYEBROW : [[70,63],[63,105],[105,66],[66,107],[107,55]];
+        const rightBrow = (typeof window !== 'undefined' && window.FACEMESH_RIGHT_EYEBROW) ? window.FACEMESH_RIGHT_EYEBROW : [[300,293],[293,334],[334,296],[296,336],[336,285]];
+        drawEdges(lips, '#ffffff', 2);
+        drawEdges(leftEye, '#ffffff', 2);
+        drawEdges(rightEye, '#ffffff', 2);
+        drawEdges(leftBrow, '#ffffff', 2);
+        drawEdges(rightBrow, '#ffffff', 2);
+        const apply = applyMakeupRef.current;
+        const colors = makeupColorsRef.current || { lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' };
+        const intens = makeupIntensityRef.current || { lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 };
+        if (apply) {
+          fillRegion(lips, colors.lips, Math.max(0, Math.min(1, intens.lips || 0)));
+          fillRegion(leftEye, colors.eyes, Math.max(0, Math.min(1, intens.eyes || 0)));
+          fillRegion(rightEye, colors.eyes, Math.max(0, Math.min(1, intens.eyes || 0)));
+          fillRegion(leftBrow, colors.brows, Math.max(0, Math.min(1, intens.brows || 0)));
+          fillRegion(rightBrow, colors.brows, Math.max(0, Math.min(1, intens.brows || 0)));
+          const li = lm[33];
+          const ri = lm[263];
+          const ml = lm[61];
+          const mr = lm[291];
+          if (li && ml && ri) {
+            const ex = li.x * c.width; const ey = li.y * c.height;
+            const mx = ml.x * c.width; const my = ml.y * c.height;
+            const rx = ri.x * c.width; const ry = ri.y * c.height;
+            const eyeSpan = Math.max(1, Math.hypot(rx - ex, ry - ey));
+            const dx = mx - ex; const dy = my - ey; const d = Math.hypot(dx, dy);
+            let cx = (ex + mx) / 2; let cy = (ey + my) / 2 + d * 0.10;
+            cx -= eyeSpan * 0.22; // push outward from face center
+            cy -= d * 0.08;       // lift toward cheekbone to avoid moustache
+            const r = Math.max(12, d * 0.32);
+            const g = ctx.createRadialGradient(fx(cx), cy, 0, fx(cx), cy, r);
+            g.addColorStop(0, toRgba(colors.cheeks, Math.max(0, Math.min(1, intens.cheeks || 0))));
+            g.addColorStop(1, toRgba(colors.cheeks, 0));
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fx(cx), cy, r, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(fx(cx), cy, r, 0, Math.PI * 2); ctx.stroke();
+          }
+          if (ri && mr && li) {
+            const ex = ri.x * c.width; const ey = ri.y * c.height;
+            const mx = mr.x * c.width; const my = mr.y * c.height;
+            const lx = li.x * c.width; const ly = li.y * c.height;
+            const eyeSpan = Math.max(1, Math.hypot(ex - lx, ey - ly));
+            const dx = mx - ex; const dy = my - ey; const d = Math.hypot(dx, dy);
+            let cx = (ex + mx) / 2; let cy = (ey + my) / 2 + d * 0.10;
+            cx += eyeSpan * 0.22; // push outward
+            cy -= d * 0.08;       // lift toward cheekbone
+            const r = Math.max(12, d * 0.32);
+            const g = ctx.createRadialGradient(fx(cx), cy, 0, fx(cx), cy, r);
+            g.addColorStop(0, toRgba(colors.cheeks, Math.max(0, Math.min(1, intens.cheeks || 0))));
+            g.addColorStop(1, toRgba(colors.cheeks, 0));
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fx(cx), cy, r, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(fx(cx), cy, r, 0, Math.PI * 2); ctx.stroke();
+          }
+        }
+      }
+
       if (o) {
-        const lm = landmarksRef.current;
-        const hlm = handLmRef.current;
-        const plm = poseLmRef.current;
-        const fx = (x) => c.width - x;
         if (mode === 'face' && lm && lm.length > 0) {
           const li = lm[33];
           const ri = lm[263];
@@ -502,6 +603,31 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
             ctx.beginPath();
             ctx.arc(fx(p.x * c.width), p.y * c.height, 3, 0, Math.PI * 2);
             ctx.fill();
+          }
+        }
+        const flm = landmarksRef.current;
+        if (mode === 'face' && flm && flm.length > 0) {
+          const fx = (x) => c.width - x;
+          ctx.fillStyle = '#ffffff';
+          for (let i = 0; i < flm.length; i++) {
+            const p = flm[i];
+            ctx.beginPath();
+            ctx.arc(fx(p.x * c.width), p.y * c.height, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          const tess = typeof window !== 'undefined' && window.FACEMESH_TESSELATION ? window.FACEMESH_TESSELATION : null;
+          if (tess) {
+            ctx.strokeStyle = '#dddddd';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < tess.length; i++) {
+              const a = flm[tess[i][0]];
+              const b = flm[tess[i][1]];
+              if (!a || !b) continue;
+              ctx.beginPath();
+              ctx.moveTo(fx(a.x * c.width), a.y * c.height);
+              ctx.lineTo(fx(b.x * c.width), b.y * c.height);
+              ctx.stroke();
+            }
           }
         }
       }
@@ -720,6 +846,34 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose }) => {
     anchorRef.current = { x: 0, y: 0, s: 1, r: 0 };
   }, [mode]);
 
+  if (inline) {
+    return (
+      <div className="position-relative" style={{ width: `${width}px`, height: `${height}px` }}>
+        {err ? (
+          <div className="alert alert-warning m-2">
+            <div>{err}</div>
+            <button className="btn btn-sm mt-2" style={{ backgroundColor: '#c4a62c', color: '#fff' }} onClick={startCamera}>Retry</button>
+          </div>
+        ) : (
+          <>
+            <video ref={videoRef} playsInline muted className="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" style={{ transform: 'scaleX(-1)' }}></video>
+            <canvas ref={canvasRef} className="position-absolute top-0 start-0 w-100 h-100" style={{ transform: 'scaleX(-1)' }}></canvas>
+            <canvas ref={webglCanvasRef} className="position-absolute top-0 start-0 w-100 h-100" style={{ transform: 'scaleX(-1)' }}></canvas>
+            {overlaySrc ? (
+              <img ref={overlayRef} src={overlaySrc} alt="overlay" style={{ display: 'none' }} />
+            ) : null}
+            <div className="position-absolute top-0 end-0 m-2 d-flex align-items-center gap-2">
+              <span className="badge bg-light text-dark">FPS {fps}</span>
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowTracking(v => !v)}>{showTracking ? 'Hide Tracking' : 'Show Tracking'}</button>
+            </div>
+          </>
+        )}
+        {!running && !err && (
+          <div className="text-center text-muted py-3">Starting camera…</div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100" style={{ background: '#0008', zIndex: 1060 }} onClick={onClose}>
       <div className="position-absolute top-50 start-50 translate-middle bg-white rounded shadow" style={{ width: '92%', maxWidth: '1000px' }} onClick={(e) => e.stopPropagation()}>

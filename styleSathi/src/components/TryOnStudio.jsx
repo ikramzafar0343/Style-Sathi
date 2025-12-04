@@ -1,356 +1,179 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-// using native getUserMedia video element to avoid external deps in production
-import { FaceMesh, FACEMESH_LIPS, FACEMESH_LEFT_EYE, FACEMESH_RIGHT_EYE, FACEMESH_LEFT_EYEBROW, FACEMESH_RIGHT_EYEBROW, FACEMESH_FACE_OVAL } from '@mediapipe/face_mesh';
-import { Hands } from '@mediapipe/hands';
-import { Pose } from '@mediapipe/pose';
-import { aiApi } from '../services/api';
-import { FaTint, FaMagic, FaUpload, FaPlay, FaStop } from 'react-icons/fa';
+import { useEffect, useState } from 'react'
+import styleSathiLogo from '../assets/styleSathiLogo.svg'
+import { FaUser, FaShoppingCart, FaArrowLeft } from 'react-icons/fa'
+import { IoIosGlasses } from 'react-icons/io'
+import { GiBigDiamondRing, GiConverseShoe, GiWatch } from 'react-icons/gi'
+import TryOnBase from './tryon/TryOnBase'
+import { catalogApi } from '../services/api'
 
-const TryOnStudio = ({ token, onBack }) => {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [running, setRunning] = useState(false);
-  const [lipColor, setLipColor] = useState('#c4a62c');
-  const [intensity, setIntensity] = useState(0.5);
-  const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
-  const [mode, setMode] = useState('makeup');
-  const faceLmRef = useRef(null);
-  const processingRef = useRef(false);
-  const handLmRef = useRef(null);
-  const poseLmRef = useRef(null);
-
-  const mainColor = '#c4a62c';
-  const secondaryColor = '#2c67c4';
-  const mirrored = true;
-
-  const toPx = (pt, w, h) => ({ x: (pt.x || 0) * w, y: (pt.y || 0) * h });
-  const buildPoly = (edges, lm, w, h) => {
-    const pts = new Map();
-    for (const [a, b] of edges) {
-      const pa = lm[a]; const pb = lm[b];
-      if (pa) { const p = toPx(pa, w, h); pts.set(a, p); }
-      if (pb) { const p = toPx(pb, w, h); pts.set(b, p); }
-    }
-    const arr = Array.from(pts.values());
-    if (arr.length < 3) return null;
-    const cx = arr.reduce((s, p) => s + p.x, 0) / arr.length;
-    const cy = arr.reduce((s, p) => s + p.y, 0) / arr.length;
-    arr.sort((p1, p2) => Math.atan2(p1.y - cy, p1.x - cx) - Math.atan2(p2.y - cy, p2.x - cx));
-    return arr;
-  };
-  const drawPoly = (ctx, poly, fill, stroke, width = 1, alpha = 1) => {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.filter = 'blur(0.5px)';
-    ctx.beginPath();
-    ctx.moveTo(poly[0].x, poly[0].y);
-    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
-    ctx.closePath();
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.stroke(); }
-    ctx.restore();
-  };
-  const clampRect = (x, y, w0, h0, W, H) => ({
-    x: Math.max(0, Math.min(W, x)),
-    y: Math.max(0, Math.min(H, y)),
-    w: Math.max(0, Math.min(W - x, w0)),
-    h: Math.max(0, Math.min(H - y, h0)),
-  });
-  const polyBounds = (poly) => {
-    const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-  };
-  const drawOverlay = useCallback((ctx, w, h) => {
-    const alpha = Math.min(1, Math.max(0, intensity));
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    const lm = faceLmRef.current;
-    if (lm && lm.length > 300) {
-      const L = (i) => toPx(lm[i] || { x: 0.5, y: 0.5 }, w, h);
-      const leftEye = L(33), rightEye = L(263);
-      const facePoly = buildPoly(FACEMESH_FACE_OVAL, lm, w, h);
-      if (facePoly) drawPoly(ctx, facePoly, null, '#00000022', 2, 0.6);
-      if (mode === 'makeup') {
-        const lipsPoly = buildPoly(FACEMESH_LIPS, lm, w, h);
-        if (lipsPoly) {
-          drawPoly(ctx, lipsPoly, lipColor, null, 1, Math.min(0.9, alpha));
-          const b = polyBounds(lipsPoly);
-          const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
-          grad.addColorStop(0, lipColor + '55');
-          grad.addColorStop(1, lipColor + '00');
-          ctx.save();
-          ctx.globalCompositeOperation = 'multiply';
-          drawPoly(ctx, lipsPoly, grad, null, 0, Math.min(0.6, alpha));
-          ctx.restore();
-        }
-        const lePoly = buildPoly(FACEMESH_LEFT_EYE, lm, w, h);
-        const rePoly = buildPoly(FACEMESH_RIGHT_EYE, lm, w, h);
-        if (lePoly) {
-          ctx.save(); ctx.globalCompositeOperation = 'multiply';
-          drawPoly(ctx, lePoly, '#f0629222', '#f06292', 1, Math.min(0.5, alpha)); ctx.restore();
-        }
-        if (rePoly) {
-          ctx.save(); ctx.globalCompositeOperation = 'multiply';
-          drawPoly(ctx, rePoly, '#f0629222', '#f06292', 1, Math.min(0.5, alpha)); ctx.restore();
-        }
-      } else if (mode === 'jewelry') {
-        ctx.fillStyle = '#ffd700';
-        const scale = Math.abs(rightEye.x - leftEye.x);
-        const lobeL = L(234), lobeR = L(454);
-        ctx.beginPath();
-        ctx.arc(lobeL.x, lobeL.y + scale * 0.2, Math.max(6, scale * 0.04), 0, Math.PI * 2);
-        ctx.arc(lobeR.x, lobeR.y + scale * 0.2, Math.max(6, scale * 0.04), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = 3;
-        const nx = (leftEye.x + rightEye.x) / 2;
-        const ny = Math.max(leftEye.y, rightEye.y) + scale * 1.0;
-        ctx.beginPath();
-        ctx.arc(nx, ny, Math.max(20, scale * 0.8), Math.PI * 0.05, Math.PI * 0.95);
-        ctx.stroke();
-      } else if (mode === 'hair') {
-        const lb = buildPoly(FACEMESH_LEFT_EYEBROW, lm, w, h);
-        const rb = buildPoly(FACEMESH_RIGHT_EYEBROW, lm, w, h);
-        if (lb && rb) {
-          const all = lb.concat(rb);
-          const cx = all.reduce((s, p) => s + p.x, 0) / all.length;
-          const cy = Math.min(...all.map(p => p.y)) - Math.abs(rightEye.y - leftEye.y) * 0.6;
-          const hw = Math.abs(rightEye.x - leftEye.x) * 1.4;
-          ctx.save();
-          ctx.globalCompositeOperation = 'destination-over';
-          ctx.filter = 'blur(2px)';
-          ctx.fillStyle = '#000000';
-          ctx.beginPath();
-          ctx.ellipse(cx, cy, Math.max(40, hw), Math.max(18, hw * 0.35), 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      } else if (mode === 'accessories') {
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 4;
-        const gx = Math.min(leftEye.x, rightEye.x);
-        const gw = Math.abs(rightEye.x - leftEye.x);
-        const gy = Math.min(leftEye.y, rightEye.y) - gw * 0.15;
-        const gh = gw * 0.5;
-        ctx.strokeRect(gx, gy, gw, gh);
-        ctx.fillStyle = '#111';
-        ctx.fillRect(gx + gw * 0.2, gy + gh * 0.45, gw * 0.6, gh * 0.08);
-        const lb = buildPoly(FACEMESH_LEFT_EYEBROW, lm, w, h);
-        const rb = buildPoly(FACEMESH_RIGHT_EYEBROW, lm, w, h);
-        if (lb) drawPoly(ctx, lb, null, '#000', 2, 0.6);
-        if (rb) drawPoly(ctx, rb, null, '#000', 2, 0.6);
-      }
-    } else {
-      if (mode === 'makeup') {
-        ctx.fillStyle = lipColor;
-        ctx.beginPath();
-        ctx.ellipse(w * 0.5, h * 0.72, w * 0.18, h * 0.04, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    const pose = poseLmRef.current;
-    if (pose && mode === 'clothing') {
-      const ls = toPx(pose[11] || { x: 0.4, y: 0.4 }, w, h);
-      const rs = toPx(pose[12] || { x: 0.6, y: 0.4 }, w, h);
-      const lh = toPx(pose[23] || { x: 0.45, y: 0.7 }, w, h);
-      const rh = toPx(pose[24] || { x: 0.55, y: 0.7 }, w, h);
-      const poly = [ls, rs, rh, lh];
-      drawPoly(ctx, poly, '#4444', '#666', 1.5, 0.8);
-    }
-    const hands = handLmRef.current || [];
-    if (hands.length && mode === 'accessories') {
-      const hw = (p) => toPx(p, w, h);
-      for (const hlm of hands) {
-        const wrist = hw(hlm[0]);
-        const ref = hw(hlm[9]);
-        const angle = Math.atan2(ref.y - wrist.y, ref.x - wrist.x);
-        ctx.save();
-        ctx.translate(wrist.x, wrist.y);
-        ctx.rotate(angle);
-        ctx.fillStyle = '#222';
-        ctx.fillRect(-20, -10, 40, 20);
-        ctx.restore();
-      }
-    }
-    ctx.restore();
-  }, [lipColor, intensity, mode]);
+const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccountSettings, cartItemsCount = 0 }) => {
+  const [mode, setMode] = useState('face')
+  const [items, setItems] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [makeupColors, setMakeupColors] = useState({ lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' })
+  const [makeupIntensity, setMakeupIntensity] = useState({ lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 })
+  const [applyMakeup, setApplyMakeup] = useState(false)
+  const mainColor = '#c4a62c'
+  const secondaryColor = '#2c67c4'
 
   useEffect(() => {
-    let id;
-    // init mediapipe modules
-    const fm = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
-    fm.setOptions({ maxNumFaces: 1, refineLandmarks: true, selfieMode: true });
-    fm.onResults((res) => {
-      const raw = (res.multiFaceLandmarks && res.multiFaceLandmarks[0]) || null;
-      if (!raw) { faceLmRef.current = null; return; }
-      const prev = prevFaceLmRef.current;
-      if (!prev || prev.length !== raw.length) {
-        prevFaceLmRef.current = raw.map(p => ({ x: p.x, y: p.y, z: p.z }));
-        faceLmRef.current = raw;
-      } else {
-        const sm = raw.map((p, i) => {
-          const q = prev[i];
-          return {
-            x: smoothAlpha * q.x + (1 - smoothAlpha) * p.x,
-            y: smoothAlpha * q.y + (1 - smoothAlpha) * p.y,
-            z: smoothAlpha * q.z + (1 - smoothAlpha) * p.z,
-          };
-        });
-        prevFaceLmRef.current = sm;
-        faceLmRef.current = sm;
-      }
-    });
-    const h = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-    h.setOptions({ maxNumHands: 2, selfieMode: true });
-    h.onResults((res) => { handLmRef.current = res.multiHandLandmarks || []; });
-    const p = new Pose({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
-    p.setOptions({ modelComplexity: 1, selfieMode: true });
-    p.onResults((res) => { poseLmRef.current = res.poseLandmarks || null; });
-    const loop = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (video && canvas) {
-        const w = video.videoWidth; const h = video.videoHeight;
-        if (w && h) { canvas.width = w; canvas.height = h; }
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!processingRef.current) {
-          processingRef.current = true;
-          Promise.resolve().then(async () => {
-            try { await fm.send({ image: video }); } catch {}
-            try { await h.send({ image: video }); } catch {}
-            try { await p.send({ image: video }); } catch {}
-            processingRef.current = false;
-          });
-        }
-        if (running) drawOverlay(ctx, canvas.width, canvas.height);
-      }
-      id = requestAnimationFrame(loop);
-    };
-    id = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(id);
-  }, [running, drawOverlay]);
+    let mounted = true
+    catalogApi.getProducts().then((list) => {
+      const arr = (list || []).filter((p) => p.model_glb_url || p.image_url || p.image).map((p) => ({
+        id: p.id,
+        title: p.title || p.name,
+        imageUrl: p.image_url || p.image || '',
+        modelGlbUrl: p.model_glb_url || '',
+      }))
+      if (mounted) setItems(arr)
+    }).catch(() => { if (mounted) setItems([]) })
+    return () => { mounted = false }
+  }, [])
 
-  const handleUploadFrame = async () => {
-    try {
-      const canvas = canvasRef.current;
-      const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.8));
-      const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
-      const r = await aiApi.upload(token, file);
-      setInfo(`Uploaded: ${typeof r === 'object' ? r.path : 'ok'}`);
-    } catch (e) {
-      setError(e?.message || 'Upload failed');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const videoConstraints = { facingMode: 'user', width: 1280, height: 720 };
-  const startStream = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-    } catch (e) {
-      setError(e?.message || 'Camera permission denied');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
+  const overlaySrc = selected && !selected.modelGlbUrl ? (selected.imageUrl || '') : ''
+  const modelGlbUrl = selected && selected.modelGlbUrl ? selected.modelGlbUrl : ''
 
   return (
-    <div className="container-fluid vh-100 p-0 bg-light">
+    <div className="min-vh-100 bg-light">
       <header className="sticky-top bg-white border-bottom shadow-sm">
         <div className="container py-3">
-          <div className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center gap-3">
-              <button className="btn btn-link text-decoration-none" onClick={onBack} style={{ color: mainColor }}>
-                Back
+          <div className="row align-items-center">
+            <div className="col-md-3 d-flex align-items-center gap-3">
+              <button className="btn d-flex align-items-center gap-2" onClick={onBack} style={{ border: `2px solid ${mainColor}`, color: mainColor, borderRadius: '25px', backgroundColor: 'transparent' }}>
+                <FaArrowLeft /> Back
               </button>
-              <h1 className="h4 fw-bold mb-0" style={{ color: mainColor }}>AI Try-On Studio</h1>
+              <img src={styleSathiLogo} alt="STYLE SATHI" style={{ height: '40px', cursor: 'pointer' }} onClick={onBack} />
+            </div>
+            <div className="col-md-6">
+              <h5 className="mb-0" style={{ color: mainColor }}>Try-On Studio</h5>
+            </div>
+            <div className="col-md-3">
+              <div className="d-flex align-items-center justify-content-end gap-4">
+                <div className="position-relative" onClick={onNavigateToCart} style={{ cursor: 'pointer' }}>
+                  <FaShoppingCart style={{ fontSize: '24px', color: mainColor }} />
+                  {cartItemsCount > 0 && (
+                    <span className="badge rounded-pill position-absolute top-0 start-100 translate-middle" style={{ backgroundColor: secondaryColor, color: 'white', fontSize: '0.7rem', minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartItemsCount}</span>
+                  )}
+                </div>
+                <div className="d-flex align-items-center gap-2" onClick={onNavigateToAccountSettings} style={{ cursor: 'pointer' }}>
+                  <div className="rounded-circle d-flex align-items-center justify-content-center border" style={{ width: '45px', height: '45px', backgroundColor: mainColor + '20', borderColor: mainColor + '50' }}>
+                    <FaUser style={{ color: mainColor, fontSize: '18px' }} />
+                  </div>
+                  <div className="d-none d-md-block">
+                    <span style={{ color: mainColor, fontWeight: '500' }}>{currentUser?.name || 'Customer'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <div className="container py-4">
-        {(error || info) && (
-          <div className={`alert ${error ? 'alert-danger' : 'alert-info'}`}>{error || info}</div>
-        )}
+        <button className="btn btn-link p-0 mb-3 d-flex align-items-center gap-2" onClick={onBack}><FaArrowLeft /> Back</button>
         <div className="row g-4">
-          <div className="col-lg-8">
-            <div
-              className="position-relative rounded-4 overflow-hidden"
-              style={{ border: `2px solid ${mainColor}30`, backgroundColor: '#000' }}
-            >
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                autoPlay
-                style={{ width: '100%', height: 'auto', transform: 'scaleX(-1)' }}
-              />
-              <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, transform: 'scaleX(-1)', transformOrigin: 'center', pointerEvents: 'none' }} />
-            </div>
-            <div className="d-flex gap-2 mt-3">
-              {[
-                { key: 'makeup', label: 'Makeup' },
-                { key: 'jewelry', label: 'Jewelry' },
-                { key: 'hair', label: 'Hair' },
-                { key: 'accessories', label: 'Accessories' },
-              ].map((m) => (
-                <button
-                  key={m.key}
-                  className={`btn ${mode === m.key ? '' : 'btn-outline-secondary'}`}
-                  style={mode === m.key ? { backgroundColor: mainColor, color: '#fff' } : {}}
-                  onClick={() => setMode(m.key)}
-                >
-                  {m.label}
-                </button>
-              ))}
+          <div className="col-md-3">
+            <div className="card">
+              <div className="card-body d-grid gap-2">
+                <button className={`btn ${mode==='face'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='face'?mainColor:undefined, color: mode==='face'?'#fff':undefined }} onClick={() => setMode('face')}><IoIosGlasses className="me-2"/>Face</button>
+                <button className={`btn ${mode==='makeup'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='makeup'?mainColor:undefined, color: mode==='makeup'?'#fff':undefined }} onClick={() => setMode('makeup')}>Makeup</button>
+                <button className={`btn ${mode==='hand'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='hand'?mainColor:undefined, color: mode==='hand'?'#fff':undefined }} onClick={() => setMode('hand')}><GiBigDiamondRing className="me-2"/>Hand</button>
+                <button className={`btn ${mode==='feet'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='feet'?mainColor:undefined, color: mode==='feet'?'#fff':undefined }} onClick={() => setMode('feet')}><GiConverseShoe className="me-2"/>Feet</button>
+                <button className={`btn ${mode==='body'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='body'?mainColor:undefined, color: mode==='body'?'#fff':undefined }} onClick={() => setMode('body')}><GiWatch className="me-2"/>Body</button>
+              </div>
             </div>
           </div>
-          <div className="col-lg-4">
-            <div className="card border-0 shadow-sm rounded-4">
-              <div className="card-header bg-white">
-                <strong style={{ color: mainColor }}>Controls</strong>
-              </div>
-              <div className="card-body d-flex flex-column gap-3">
-                <div className="d-flex align-items-center gap-2">
-                  <FaTint style={{ color: mainColor }} /> <span>Lip Color</span>
-                  <input type="color" className="form-control form-control-color ms-auto" value={lipColor} onChange={(e) => setLipColor(e.target.value)} />
+          <div className="col-md-9">
+            <div className="card border-0 shadow-sm" style={{ borderRadius: '12px', background: `linear-gradient(135deg, ${mainColor}15, ${secondaryColor}10)` }}>
+              <div className="card-body">
+                <div className="d-flex justify-content-center">
+                  <TryOnBase
+                    inline
+                    width={900}
+                    height={500}
+                    mode={mode}
+                    overlaySrc={overlaySrc}
+                    modelGlbUrl={modelGlbUrl}
+                    makeupColors={makeupColors}
+                    makeupIntensity={makeupIntensity}
+                    applyMakeup={applyMakeup}
+                  />
                 </div>
-                <div>
-                  <label className="form-label">Intensity</label>
-                  <input type="range" min={0} max={1} step={0.05} value={intensity} onChange={(e) => setIntensity(parseFloat(e.target.value))} className="form-range" />
-                </div>
-                <div className="d-flex gap-2">
-                  <button className="btn" style={{ backgroundColor: mainColor, color: '#fff' }} onClick={async () => { await startStream(); setRunning(true); }}><FaPlay /> Start</button>
-                  <button className="btn btn-outline-secondary" onClick={() => setRunning(false)}><FaStop /> Stop</button>
-                  <button className="btn btn-outline-info" onClick={handleUploadFrame}><FaUpload /> Upload Frame</button>
-                </div>
-                <div className="small text-muted">Streaming: <a href="/api/ai/stream/mjpeg" target="_blank" rel="noreferrer">MJPEG</a></div>
-                <div className="d-grid gap-2">
-                  <button className="btn" style={{ border: `2px solid ${mainColor}`, color: mainColor }} onClick={async () => {
-                    try { await aiApi.processMakeup(token, { lips: lipColor, intensity }); setInfo('AI makeup applied'); setTimeout(() => setInfo(''), 2000); } catch (e) { setError(e?.message || 'AI error'); setTimeout(() => setError(''), 3000); }
-                  }}>
-                    <FaMagic /> Apply Makeup via AI
-                  </button>
-                  <button className="btn btn-outline-secondary" onClick={async () => { try { await aiApi.processJewelry(token, { type: 'earrings' }); setInfo('Jewelry processed'); setTimeout(() => setInfo(''), 2000); } catch (e) { setError(e?.message || 'AI error'); setTimeout(() => setError(''), 3000);} }}>Jewelry</button>
-                  <button className="btn btn-outline-secondary" onClick={async () => { try { await aiApi.processHair(token, { style: 'band' }); setInfo('Hair processed'); setTimeout(() => setInfo(''), 2000);} catch (e) { setError(e?.message || 'AI error'); setTimeout(() => setError(''), 3000);} }}>Hair</button>
-                  <button className="btn btn-outline-secondary" onClick={async () => { try { await aiApi.processAccessories(token, { type: 'glasses' }); setInfo('Accessories processed'); setTimeout(() => setInfo(''), 2000);} catch (e) { setError(e?.message || 'AI error'); setTimeout(() => setError(''), 3000);} }}>Accessories</button>
-                  <button className="btn btn-outline-secondary" onClick={async () => { try { await aiApi.processClothing(token, { pose: 'upper-body' }); setInfo('Clothing processed'); setTimeout(() => setInfo(''), 2000);} catch (e) { setError(e?.message || 'AI error'); setTimeout(() => setError(''), 3000);} }}>Clothing</button>
-                </div>
+                {mode === 'makeup' && (
+                  <div className="mt-3">
+                    <div className="row g-3 align-items-end">
+                      <div className="col-sm-4">
+                        <label className="form-label small" style={{ color: mainColor }}>Lips Color</label>
+                        <input type="color" className="form-control form-control-color" value={makeupColors.lips} onChange={(e) => setMakeupColors(v => ({ ...v, lips: e.target.value }))} />
+                        <div className="mt-2">
+                          <label className="form-label small" style={{ color: mainColor }}>Intensity</label>
+                          <input type="range" className="form-range" min="0" max="100" step="5" value={Math.round((makeupIntensity.lips||0)*100)} onChange={(e) => setMakeupIntensity(v => ({ ...v, lips: Math.max(0, Math.min(1, Number(e.target.value)/100)) }))} />
+                        </div>
+                      </div>
+                      <div className="col-sm-4">
+                        <label className="form-label small" style={{ color: mainColor }}>Eyes Color</label>
+                        <input type="color" className="form-control form-control-color" value={makeupColors.eyes} onChange={(e) => setMakeupColors(v => ({ ...v, eyes: e.target.value }))} />
+                        <div className="mt-2">
+                          <label className="form-label small" style={{ color: mainColor }}>Intensity</label>
+                          <input type="range" className="form-range" min="0" max="100" step="5" value={Math.round((makeupIntensity.eyes||0)*100)} onChange={(e) => setMakeupIntensity(v => ({ ...v, eyes: Math.max(0, Math.min(1, Number(e.target.value)/100)) }))} />
+                        </div>
+                      </div>
+                      <div className="col-sm-4">
+                        <label className="form-label small" style={{ color: mainColor }}>Eyebrows Color</label>
+                        <input type="color" className="form-control form-control-color" value={makeupColors.brows} onChange={(e) => setMakeupColors(v => ({ ...v, brows: e.target.value }))} />
+                        <div className="mt-2">
+                          <label className="form-label small" style={{ color: mainColor }}>Intensity</label>
+                          <input type="range" className="form-range" min="0" max="100" step="5" value={Math.round((makeupIntensity.brows||0)*100)} onChange={(e) => setMakeupIntensity(v => ({ ...v, brows: Math.max(0, Math.min(1, Number(e.target.value)/100)) }))} />
+                        </div>
+                      </div>
+                      <div className="col-sm-4">
+                        <label className="form-label small" style={{ color: mainColor }}>Cheeks Glow</label>
+                        <input type="color" className="form-control form-control-color" value={makeupColors.cheeks} onChange={(e) => setMakeupColors(v => ({ ...v, cheeks: e.target.value }))} />
+                        <div className="mt-2">
+                          <label className="form-label small" style={{ color: mainColor }}>Intensity</label>
+                          <input type="range" className="form-range" min="0" max="100" step="5" value={Math.round((makeupIntensity.cheeks||0)*100)} onChange={(e) => setMakeupIntensity(v => ({ ...v, cheeks: Math.max(0, Math.min(1, Number(e.target.value)/100)) }))} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="d-flex gap-2 mt-3">
+                      <button className="btn" style={{ backgroundColor: mainColor, color: '#fff' }} onClick={() => setApplyMakeup(true)}>Apply</button>
+                      {applyMakeup && (
+                        <button className="btn btn-outline-secondary" onClick={() => setApplyMakeup(false)}>Clear</button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+            {mode !== 'makeup' && (
+              <div className="mt-3 card">
+                <div className="card-body">
+                  <div className="d-flex gap-3 overflow-auto">
+                    {items.map((it) => (
+                      <div key={it.id} className="text-center" style={{ minWidth: '160px' }}>
+                        <div className="ratio ratio-4x3 bg-light rounded mb-2">
+                          {it.imageUrl ? (
+                            <img src={it.imageUrl} alt={it.title} className="w-100 h-100 object-fit-cover rounded" />
+                          ) : (
+                            <div className="d-flex align-items-center justify-content-center text-muted">3D</div>
+                          )}
+                        </div>
+                        <div className="small mb-2">{it.title}</div>
+                        <div className="d-flex justify-content-center gap-2 mb-2">
+                          {it.modelGlbUrl ? <span className="badge bg-light text-dark">3D</span> : <span className="badge bg-light text-dark">Image</span>}
+                        </div>
+                        <button className="btn btn-sm" style={{ backgroundColor: mainColor, color: '#fff' }} onClick={() => setSelected(it)}>Try</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default TryOnStudio;
+export default TryOnStudio

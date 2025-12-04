@@ -24,6 +24,7 @@ const HomePage = ({
   onNavigateToProductDetail,
   onNavigateToVR,
   onNavigateToAR,
+  onNavigateToAIStudio,
   onAddToCart,
   onLogout,
   currentUser,
@@ -560,13 +561,60 @@ const HomePage = ({
       </section>
 
       {/* AI Try-On Section */}
-      <section className="py-5 bg-light">
+      <section className="py-5 bg-white">
         <div className="container">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h4 className="mb-0">AI Try-On Studio</h4>
-            <button className="btn btn-primary" onClick={openAIStudio}>Open Studio</button>
+          <div 
+            className="position-relative rounded-4 overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${mainColor}20, ${secondaryColor}20)`,
+              border: `2px solid ${mainColor}30`,
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.borderColor = mainColor;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.borderColor = `${mainColor}30`;
+            }}
+          >
+            <div className="row align-items-center">
+              <div className="col-md-6 p-5">
+                <h3 className="fw-bold mb-3" style={{ color: mainColor }}>
+                  AI Try-On Studio
+                </h3>
+                <p className="text-muted mb-4">
+                  Experiment with makeup, jewelry, hair and accessories using your camera.
+                  Powered by Mediapipe + Gemini + Groq.
+                </p>
+                <button
+                  className="btn px-4 py-3 d-flex align-items-center gap-2"
+                  style={{ 
+                    backgroundColor: mainColor, 
+                    color: "#fff",
+                    borderRadius: '25px',
+                    border: 'none',
+                    fontWeight: '500'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAIStudio();
+                  }}
+                >
+                  <FaSearchPlus /> Open Studio
+                </button>
+              </div>
+              <div className="col-md-6">
+                <img
+                  src="https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=600&h=400&fit=crop"
+                  className="w-100 h-100 object-fit-cover"
+                  alt="AI Try-On"
+                  style={{ minHeight: '300px' }}
+                />
+              </div>
+            </div>
           </div>
-          <p className="text-muted">Experiment with makeup, jewelry, and accessories using your camera. Powered by Mediapipe + Gemini + Groq.</p>
         </div>
       </section>
 

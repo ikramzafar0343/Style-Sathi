@@ -131,28 +131,3 @@ export const adminApi = {
   deleteUser: (token, { id, reason, email }) =>
     json(`${BASE_URL}/auth/admin/users`, { method: 'DELETE', token, body: { id, reason, email } }),
 };
-
-export const aiApi = {
-  upload: (token, file) => {
-    const fd = new FormData();
-    fd.append('file', file);
-    return fetch(`${BASE_URL}/ai/upload`, {
-      method: 'POST',
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: fd
-    }).then(async (resp) => {
-      const ct = resp.headers.get('content-type') || '';
-      if (!resp.ok) throw new Error(await resp.text());
-      return ct.includes('application/json') ? resp.json() : resp.text();
-    });
-  },
-  processMakeup: (token, payload) => json(`${BASE_URL}/ai/process/makeup`, { method: 'POST', token, body: payload }),
-  processJewelry: (token, payload) => json(`${BASE_URL}/ai/process/jewelry`, { method: 'POST', token, body: payload }),
-  processHair: (token, payload) => json(`${BASE_URL}/ai/process/hair`, { method: 'POST', token, body: payload }),
-  processAccessories: (token, payload) => json(`${BASE_URL}/ai/process/accessories`, { method: 'POST', token, body: payload }),
-  processClothing: (token, payload) => json(`${BASE_URL}/ai/process/clothing`, { method: 'POST', token, body: payload }),
-  outfitUpdate: (token, state) => json(`${BASE_URL}/ai/outfit/update`, { method: 'POST', token, body: state }),
-  realtimeFeed: (token) => json(`${BASE_URL}/ai/feed`, { token }),
-  chatStylist: (token, message) => json(`${BASE_URL}/ai/chat/stylist`, { method: 'POST', token, body: { message } }),
-  skinAnalysis: (token, frame) => json(`${BASE_URL}/ai/skin/analysis`, { method: 'POST', token, body: frame }),
-};

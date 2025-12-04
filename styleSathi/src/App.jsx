@@ -730,8 +730,11 @@ const App = () => {
       case 'tryon-studio':
         return (
           <TryOnStudio
-            token={authTokens?.access}
             onBack={navigateToHome}
+            currentUser={currentUser}
+            onNavigateToCart={navigateToCart}
+            onNavigateToAccountSettings={navigateToCustomerAccountSettings}
+            cartItemsCount={cartItems.length}
           />
         );
       case 'customer-account-settings':
