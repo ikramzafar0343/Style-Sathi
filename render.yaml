@@ -13,13 +13,7 @@ services:
         value: stylesathi-backend.onrender.com,stylesathi-frontend.onrender.com
       - key: DJANGO_DEBUG
         value: false
-      - key: DB_ENGINE
-        value: mongodb
-      - key: USE_DJONGO
-        value: true
-      - key: DB_NAME
-        value: stylesathi
-      - key: MONGO_URI
+      - key: DATABASE_URL
         sync: false
       - key: BOOTSTRAP_ADMIN_RUN
         value: true
