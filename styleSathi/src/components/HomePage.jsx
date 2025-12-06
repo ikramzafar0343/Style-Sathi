@@ -68,7 +68,16 @@ const HomePage = ({
           image_url: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
           model_glb_url: resolveAssetUrl(p.model_glb_url || p.modelGlbUrl),
         })) : list;
-        setProducts(normalized);
+        const filtered = Array.isArray(normalized)
+          ? normalized.filter((p) => {
+              const idNum = Number(p.id);
+              const img = String(p.image_url || '').toLowerCase();
+              if (idNum === 8) return false;
+              if (img.includes('product_8_download.jfif')) return false;
+              return true;
+            })
+          : normalized;
+        setProducts(filtered);
       } catch { setProducts([]); }
     };
     load();
