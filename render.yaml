@@ -19,14 +19,10 @@ services:
         value: admin@stylesathi.com
       - key: BOOTSTRAP_ADMIN_PASSWORD
         fromSecret: BOOTSTRAP_ADMIN_PASSWORD
-  - type: static_site
+  - type: static
     name: stylesathi-frontend
     buildCommand: |
       cd styleSathi
       npm ci
       npm run build
     publishPath: styleSathi/dist
-    headers:
-      - path: /assets/**
-        name: Content-Type
-        value: text/css
