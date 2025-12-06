@@ -85,18 +85,22 @@ elif DB_ENGINE == 'postgres':
         }
     }
 elif DB_ENGINE == 'mongodb' and USE_DJONGO:
+    _mongo_uri = os.environ.get('MONGO_URI', '')
+    _client_cfg = {
+        'host': os.environ.get('DB_HOST', '127.0.0.1'),
+        'port': int(os.environ.get('DB_PORT', '27017')),
+        'username': os.environ.get('DB_USER', ''),
+        'password': os.environ.get('DB_PASSWORD', ''),
+        'authSource': os.environ.get('DB_AUTH_SOURCE', 'admin'),
+    }
+    if _mongo_uri:
+        _client_cfg = {'host': _mongo_uri}
     DATABASES = {
         'default': {
             'ENGINE': 'djongo',
             'NAME': os.environ.get('DB_NAME', 'stylesathi'),
             'ENFORCE_SCHEMA': False,
-            'CLIENT': {
-                'host': os.environ.get('DB_HOST', '127.0.0.1'),
-                'port': int(os.environ.get('DB_PORT', '27017')),
-                'username': os.environ.get('DB_USER', ''),
-                'password': os.environ.get('DB_PASSWORD', ''),
-                'authSource': os.environ.get('DB_AUTH_SOURCE', 'admin'),
-            }
+            'CLIENT': _client_cfg,
         }
     }
 else:
