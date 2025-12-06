@@ -10,73 +10,132 @@ from django.conf import settings
 import secrets
 from catalog.models import Product, Category
 from orders.models import Order, OrderItem
-from .mongo import sync_user, soft_delete_user
+from .mongo import sync_user, soft_delete_user, create_user_doc, get_user_doc, check_user_password
+from .jwt import create_tokens
 
 RESET_TOKENS = {}
 MODERATION_STATUSES = {}
 
 def build_tokens(user):
+    mongo = getattr(settings, 'MONGO_DB', None)
+    if mongo:
+        role = getattr(user, 'role', None) or 'customer'
+        email = getattr(user, 'email', None)
+        return create_tokens(email, role)
     refresh = RefreshToken.for_user(user)
-    return {
-        'access': str(refresh.access_token),
-        'refresh': str(refresh),
-    }
+    return {'access': str(refresh.access_token), 'refresh': str(refresh)}
 
 class SignupView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            data = request.data or {}
+            email = data.get('email')
+            password = data.get('password')
+            role = data.get('role', 'customer')
+            if not email or not password:
+                return Response({'detail': 'Email and password required'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                create_user_doc(mongo, email, password, role, {
+                    'phone': data.get('phone'),
+                    'business_name': data.get('business_name'),
+                    'business_type': data.get('business_type'),
+                    'first_name': (data.get('fullName') or '').split(' ', 1)[0] if data.get('fullName') else '',
+                    'last_name': (data.get('fullName') or '').split(' ', 1)[1] if data.get('fullName') and ' ' in data.get('fullName') else '',
+                })
+                doc = get_user_doc(mongo, email)
+                tokens = create_tokens(email, role)
+                return Response({'user': {
+                    'email': doc.get('email'),
+                    'username': doc.get('username') or doc.get('email'),
+                    'first_name': doc.get('first_name') or '',
+                    'last_name': doc.get('last_name') or '',
+                    'role': doc.get('role')
+                }, 'tokens': tokens}, status=status.HTTP_201_CREATED)
+            except Exception:
+                return Response({'detail': 'Signup failed'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             try:
-                mongo = getattr(settings, 'MONGO_DB', None)
-                if mongo:
-                    sync_user(mongo, user)
+                sync_user(getattr(settings, 'MONGO_DB', None), user)
             except Exception:
                 pass
             tokens = build_tokens(user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'tokens': tokens
-            }, status=status.HTTP_201_CREATED)
+            return Response({'user': UserSerializer(user).data, 'tokens': tokens}, status=status.HTTP_201_CREATED)
         return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 class SellerSignupView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            data = request.data or {}
+            data = {**data, 'role': 'seller'}
+            email = data.get('email')
+            password = data.get('password')
+            if not email or not password:
+                return Response({'detail': 'Email and password required'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                create_user_doc(mongo, email, password, 'seller', {
+                    'phone': data.get('phone'),
+                    'business_name': data.get('business_name'),
+                    'business_type': data.get('business_type'),
+                })
+                doc = get_user_doc(mongo, email)
+                tokens = create_tokens(email, 'seller')
+                return Response({'user': {
+                    'email': doc.get('email'),
+                    'username': doc.get('username') or doc.get('email'),
+                    'role': 'seller'
+                }, 'tokens': tokens}, status=status.HTTP_201_CREATED)
+            except Exception:
+                return Response({'detail': 'Signup failed'}, status=status.HTTP_400_BAD_REQUEST)
         data = request.data.copy()
         data['role'] = 'seller'
         serializer = SignupSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
             try:
-                mongo = getattr(settings, 'MONGO_DB', None)
-                if mongo:
-                    sync_user(mongo, user)
+                sync_user(getattr(settings, 'MONGO_DB', None), user)
             except Exception:
                 pass
             tokens = build_tokens(user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'tokens': tokens
-            }, status=status.HTTP_201_CREATED)
+            return Response({'user': UserSerializer(user).data, 'tokens': tokens}, status=status.HTTP_201_CREATED)
         return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            email = request.data.get('email')
+            password = request.data.get('password')
+            expected_role = request.data.get('expected_role')
+            if not email or not password:
+                return Response({'detail': 'Email and password required'}, status=status.HTTP_400_BAD_REQUEST)
+            doc = get_user_doc(mongo, email)
+            if not doc or not check_user_password(doc, password):
+                return Response({'errors': {'detail': ['Invalid credentials']}}, status=status.HTTP_400_BAD_REQUEST)
+            role = doc.get('role')
+            if expected_role and role != expected_role:
+                return Response({'errors': {'detail': ['Role mismatch']}}, status=status.HTTP_400_BAD_REQUEST)
+            tokens = create_tokens(email, role)
+            return Response({'user': {
+                'email': doc.get('email'),
+                'username': doc.get('username') or doc.get('email'),
+                'role': role
+            }, 'tokens': tokens})
         try:
             serializer = LoginSerializer(data=request.data)
             if serializer.is_valid():
                 user = serializer.validated_data['user']
                 tokens = build_tokens(user)
-                return Response({
-                    'user': UserSerializer(user).data,
-                    'tokens': tokens
-                }, status=status.HTTP_200_OK)
+                return Response({'user': UserSerializer(user).data, 'tokens': tokens}, status=status.HTTP_200_OK)
             return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({'detail': 'Login failed. Please try again later.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -85,28 +144,62 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            doc = get_user_doc(mongo, getattr(request.user, 'email', None))
+            if not doc:
+                return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'user': {
+                'email': doc.get('email'),
+                'username': doc.get('username') or doc.get('email'),
+                'first_name': doc.get('first_name') or '',
+                'last_name': doc.get('last_name') or '',
+                'role': doc.get('role')
+            }})
         return Response({'user': UserSerializer(request.user).data})
 
     def patch(self, request):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            email = getattr(request.user, 'email', None)
+            doc = get_user_doc(mongo, email)
+            if not doc:
+                return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            update = {}
+            for k in ['first_name', 'last_name', 'phone', 'business_name', 'business_type']:
+                v = request.data.get(k)
+                if v is not None:
+                    update[k] = v
+            if update:
+                mongo['users'].update_one({'email': email}, {'$set': update})
+            doc.update(update)
+            return Response({'user': {
+                'email': doc.get('email'),
+                'username': doc.get('username') or doc.get('email'),
+                'first_name': doc.get('first_name') or '',
+                'last_name': doc.get('last_name') or '',
+                'role': doc.get('role')
+            }})
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             try:
-                mongo = getattr(settings, 'MONGO_DB', None)
-                if mongo:
-                    sync_user(mongo, request.user)
+                sync_user(getattr(settings, 'MONGO_DB', None), request.user)
             except Exception:
                 pass
             return Response({'user': serializer.data})
         return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            email = getattr(request.user, 'email', None)
+            soft_delete_user(mongo, email)
+            return Response({'message': 'Account deleted'}, status=status.HTTP_200_OK)
         user = request.user
         user.delete()
         try:
-            mongo = getattr(settings, 'MONGO_DB', None)
-            if mongo:
-                soft_delete_user(mongo, getattr(user, 'email', None))
+            soft_delete_user(getattr(settings, 'MONGO_DB', None), getattr(user, 'email', None))
         except Exception:
             pass
         return Response({'message': 'Account deleted'}, status=status.HTTP_200_OK)
