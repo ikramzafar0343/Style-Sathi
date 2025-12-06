@@ -6,12 +6,19 @@ services:
       pip install -r backend/requirements.txt
       python backend/manage.py collectstatic --noinput
       python backend/manage.py migrate
+      if [ "$BOOTSTRAP_ADMIN_RUN" = "true" ]; then python backend/manage.py bootstrap_admin; fi
     startCommand: gunicorn stylesathi_backend.wsgi:application --chdir backend --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_ALLOWED_HOSTS
         value: stylesathi-backend.onrender.com,stylesathi-frontend.onrender.com
       - key: DJANGO_DEBUG
         value: false
+      - key: BOOTSTRAP_ADMIN_RUN
+        value: true
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        value: admin@stylesathi.com
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        fromSecret: BOOTSTRAP_ADMIN_PASSWORD
   - type: static_site
     name: stylesathi-frontend
     buildCommand: |
