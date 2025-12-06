@@ -48,13 +48,17 @@ class LoginSerializer(serializers.Serializer):
         email = data.get('email')
         password = data.get('password')
         expected_role = data.get('expected_role')
+        user = None
         try:
-            user_obj = User.objects.get(email=email)
-            user = authenticate(username=user_obj.username, password=password)
-        except User.DoesNotExist:
-            user = None
-        if user is None:
-            raise serializers.ValidationError('Invalid credentials')
+            user = User.objects.filter(email=email).first()
+            if not user:
+                raise serializers.ValidationError('Invalid credentials')
+            if not user.check_password(password):
+                raise serializers.ValidationError('Invalid credentials')
+        except serializers.ValidationError:
+            raise
+        except Exception:
+            raise serializers.ValidationError('Login failed')
         if expected_role and user.role != expected_role:
             raise serializers.ValidationError('Role mismatch')
         data['user'] = user
