@@ -5,11 +5,12 @@ from rest_framework.exceptions import PermissionDenied
 from django.conf import settings
 from django.utils import timezone
 from .models import Product, Category
+from .mongo import product_doc_from_request, product_public
 from cart.models import CartItem
 from .serializers import ProductSerializer, CategorySerializer
 
 class ProductListView(generics.ListAPIView):
-    queryset = Product.objects.all().order_by('-id')
+    queryset = Product.objects.select_related('category', 'owner').all().order_by('-id')
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter]
@@ -28,48 +29,35 @@ class ProductListView(generics.ListAPIView):
             params = request.query_params
             cat = params.get('category')
             search = params.get('search')
+            try:
+                page = max(1, int(params.get('page', '1')))
+            except Exception:
+                page = 1
+            try:
+                page_size = min(100, max(1, int(params.get('page_size', '20'))))
+            except Exception:
+                page_size = 20
             query = {'in_stock': True}
             if cat:
                 query['category'] = cat
             if search:
-                query['$or'] = [
-                    {'title': {'$regex': search, '$options': 'i'}},
-                    {'brand': {'$regex': search, '$options': 'i'}},
-                    {'description': {'$regex': search, '$options': 'i'}},
-                ]
+                query['$text'] = {'$search': search}
             try:
-                docs = list(mongo['products'].find(query).sort('_id', -1).limit(200))
-                data = []
-                for d in docs:
-                    cat_name = d.get('category') if isinstance(d.get('category'), str) else (d.get('category', {}).get('name') if isinstance(d.get('category'), dict) else '')
-                    data.append({
-                        'id': str(d.get('_id')),
-                        'title': d.get('title') or d.get('name'),
-                        'price': float(d.get('price') or 0),
-                        'original_price': float(d.get('original_price') or 0),
-                        'category': {'id': None, 'name': cat_name},
-                        'brand': d.get('brand') or '',
-                        'description': d.get('description') or '',
-                        'image_url': d.get('image_url') or d.get('image') or '',
-                        'model_glb_url': d.get('model_glb_url') or '',
-                        'in_stock': bool(d.get('in_stock', True)),
-                        'rating': float(d.get('rating') or 0),
-                        'features': d.get('features') or [],
-                        'owner': None,
-                        'sku': d.get('sku') or '',
-                        'stock': int(d.get('stock') or 0),
-                    })
+                cursor = mongo['products'].find(query).sort('_id', -1)
+                total = cursor.count() if hasattr(cursor, 'count') else mongo['products'].count_documents(query)
+                docs = list(cursor.skip((page-1)*page_size).limit(page_size))
+                data = [product_public(d) for d in docs]
                 # Fallback to ORM if collection empty
                 if not data:
                     return super().list(request, *args, **kwargs)
-                return Response(data)
+                return Response({'results': data, 'page': page, 'page_size': page_size, 'total': total})
             except Exception:
                 # Any Mongo error -> fallback
                 return super().list(request, *args, **kwargs)
         return super().list(request, *args, **kwargs)
 
 class ProductDetailView(generics.RetrieveAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.select_related('category', 'owner').all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -98,6 +86,18 @@ class MyProductListView(generics.ListAPIView):
     def get_queryset(self):
         return Product.objects.filter(owner=self.request.user).order_by('-id')
 
+    def list(self, request, *args, **kwargs):
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            email = getattr(request.user, 'email', None)
+            try:
+                docs = list(mongo['products'].find({'owner_email': email}).sort('_id', -1).limit(500))
+                data = [product_public(d) for d in docs]
+                return Response(data)
+            except Exception:
+                pass
+        return super().list(request, *args, **kwargs)
+
 class ProductCreateView(generics.CreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -107,6 +107,16 @@ class ProductCreateView(generics.CreateAPIView):
         user = request.user
         if getattr(user, 'role', 'customer') not in ['seller', 'admin']:
             return Response({'detail': 'Only sellers or admins can create products'}, status=403)
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            try:
+                doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), getattr(user, 'email', None))
+                mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
+                mongo['categories'].update_one({'name': doc['category']}, {'$set': {'name': doc['category']}}, upsert=True)
+                out = mongo['products'].find_one({'sku': doc['sku']})
+                return Response(product_public(out), status=201)
+            except Exception:
+                return Response({'detail': 'Failed to create product'}, status=400)
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response({'errors': serializer.errors}, status=400)
@@ -117,25 +127,22 @@ class ProductCreateView(generics.CreateAPIView):
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo:
             try:
-                doc = {
-                    'title': product.title,
-                    'price': float(product.price or 0),
-                    'original_price': float(product.original_price or 0),
-                    'category': product.category.name,
-                    'brand': product.brand,
-                    'description': product.description,
-                    'image_url': product.image_url,
-                    'model_glb_url': product.model_glb_url,
-                    'sketchfab_embed_url': getattr(product, 'sketchfab_embed_url', ''),
-                    'in_stock': bool(product.in_stock),
-                    'rating': float(product.rating or 0),
-                    'features': list(product.features or []),
-                    'owner_email': getattr(product.owner, 'email', None),
-                    'sku': product.sku,
-                    'stock': int(product.stock or 0),
-                }
-                mongo['products'].update_one({'sku': product.sku}, {'$set': doc}, upsert=True)
-                mongo['categories'].update_one({'name': product.category.name}, {'$set': {'name': product.category.name}}, upsert=True)
+                doc = product_doc_from_request({'title': product.title,
+                                                'price': product.price,
+                                                'original_price': product.original_price,
+                                                'category': product.category.name,
+                                                'brand': product.brand,
+                                                'description': product.description,
+                                                'image_url': product.image_url,
+                                                'model_glb_url': product.model_glb_url,
+                                                'sketchfab_embed_url': getattr(product, 'sketchfab_embed_url', ''),
+                                                'in_stock': bool(product.in_stock),
+                                                'rating': product.rating,
+                                                'features': list(product.features or []),
+                                                'sku': product.sku,
+                                                'stock': product.stock}, {}, getattr(product.owner, 'email', None))
+                mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
+                mongo['categories'].update_one({'name': doc['category']}, {'$set': {'name': doc['category']}}, upsert=True)
             except Exception:
                 pass
         return Response(ProductSerializer(product).data, status=201)
@@ -154,31 +161,18 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied('Not allowed to modify this product')
 
     def perform_update(self, serializer):
-        product = serializer.save()
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo:
             try:
-                doc = {
-                    'title': product.title,
-                    'price': float(product.price or 0),
-                    'original_price': float(product.original_price or 0),
-                    'category': product.category.name,
-                    'brand': product.brand,
-                    'description': product.description,
-                    'image_url': product.image_url,
-                    'model_glb_url': product.model_glb_url,
-                    'sketchfab_embed_url': getattr(product, 'sketchfab_embed_url', ''),
-                    'in_stock': bool(product.in_stock),
-                    'rating': float(product.rating or 0),
-                    'features': list(product.features or []),
-                    'owner_email': getattr(product.owner, 'email', None),
-                    'sku': product.sku,
-                    'stock': int(product.stock or 0),
-                }
-                mongo['products'].update_one({'sku': product.sku}, {'$set': doc}, upsert=True)
-                mongo['categories'].update_one({'name': product.category.name}, {'$set': {'name': product.category.name}}, upsert=True)
+                product = self.get_object()
+                doc = product_doc_from_request(self.request.data, getattr(self.request, 'FILES', None), getattr(self.request.user, 'email', None))
+                doc['sku'] = self.request.data.get('sku') or product.sku
+                mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
+                if doc.get('category'):
+                    mongo['categories'].update_one({'name': doc['category']}, {'$set': {'name': doc['category']}}, upsert=True)
             except Exception:
                 pass
+        product = serializer.save()
 
     def perform_destroy(self, instance):
         sku = instance.sku

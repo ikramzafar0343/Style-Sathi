@@ -30,7 +30,12 @@ export const catalogApi = {
     const params = new URLSearchParams();
     if (category) params.set('category', category);
     if (search) params.set('search', search);
-    return json(`/products/?${params.toString()}`);
+    return json(`/products/?${params.toString()}`).then((resp) => {
+      if (Array.isArray(resp)) return resp;
+      if (resp && Array.isArray(resp.results)) return resp.results;
+      if (resp && Array.isArray(resp.products)) return resp.products;
+      return [];
+    });
   },
   getProduct: (id) => json(`/products/${id}`),
   getMyProducts: (token) => json(`/products/mine`, { token }),
