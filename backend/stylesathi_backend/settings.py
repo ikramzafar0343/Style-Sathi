@@ -57,6 +57,11 @@ WSGI_APPLICATION = 'stylesathi_backend.wsgi.application'
 
 DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite').lower()
 USE_DJONGO = os.environ.get('USE_DJONGO', 'False').lower() in ('1', 'true', 'yes')
+try:
+    import djongo  # noqa: F401
+    DJONGO_AVAILABLE = True
+except Exception:
+    DJONGO_AVAILABLE = False
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
 # Prefer DATABASE_URL when present (Render/Postgres)
@@ -84,7 +89,7 @@ elif DB_ENGINE == 'postgres':
             'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
-elif DB_ENGINE == 'mongodb' and USE_DJONGO:
+elif DB_ENGINE == 'mongodb' and USE_DJONGO and DJONGO_AVAILABLE:
     _mongo_uri = os.environ.get('MONGO_URI', '')
     _client_cfg = {
         'host': os.environ.get('DB_HOST', '127.0.0.1'),
