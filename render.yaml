@@ -26,3 +26,8 @@ services:
       npm ci
       npm run build
     publishPath: styleSathi/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://stylesathi-backend.onrender.com/api
+      - key: NODE_VERSION
+        value: 20
