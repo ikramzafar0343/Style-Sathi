@@ -19,15 +19,14 @@ services:
         value: admin@stylesathi.com
       - key: BOOTSTRAP_ADMIN_PASSWORD
         fromSecret: BOOTSTRAP_ADMIN_PASSWORD
-  - type: static
+  - type: web
     name: stylesathi-frontend
+    runtime: static
     buildCommand: |
       cd styleSathi
       npm ci
       npm run build
-    publishPath: styleSathi/dist
+    staticPublishPath: styleSathi/dist
     envVars:
       - key: VITE_API_BASE_URL
         value: https://stylesathi-backend.onrender.com/api
-      - key: NODE_VERSION
-        value: 20
