@@ -103,11 +103,17 @@ class ProductCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def perform_create(self, serializer):
-        user = self.request.user
+    def create(self, request, *args, **kwargs):
+        user = request.user
         if getattr(user, 'role', 'customer') not in ['seller', 'admin']:
-            raise PermissionDenied('Only sellers or admins can create products')
-        product = serializer.save()
+            return Response({'detail': 'Only sellers or admins can create products'}, status=403)
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'errors': serializer.errors}, status=400)
+        try:
+            product = serializer.save()
+        except Exception:
+            return Response({'detail': 'Failed to create product'}, status=400)
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo:
             try:
@@ -132,6 +138,7 @@ class ProductCreateView(generics.CreateAPIView):
                 mongo['categories'].update_one({'name': product.category.name}, {'$set': {'name': product.category.name}}, upsert=True)
             except Exception:
                 pass
+        return Response(ProductSerializer(product).data, status=201)
 
 class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
