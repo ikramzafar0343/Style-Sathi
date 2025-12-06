@@ -21,6 +21,11 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const profileDropdownRef = useRef(null)
   const [reports, setReports] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [createForm, setCreateForm] = useState({ type: '', user_email: '', description: '', severity: 'low' })
   
 
   useEffect(() => {
@@ -37,13 +42,17 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
   useEffect(() => {
     let mounted = true
     ;(async () => {
+      setLoading(true)
+      setError('')
       try {
         const resp = await adminApi.getReports(token)
         if (mounted) {
           setReports(resp.reports || [])
         }
       } catch (e) {
-        console.error('Failed to load reports', e)
+        setError(e?.message || 'Failed to load reports')
+      } finally {
+        setLoading(false)
       }
     })()
     return () => { mounted = false }
@@ -136,7 +145,15 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
                     <input className="form-control border-start-0" placeholder="Search reports..." style={{ borderColor: secondaryColor, borderRadius: '0 8px 8px 0' }} />
                   </div>
                 </div>
+                {loading ? (
+                  <div className="text-center py-4 text-muted">Loading reports…</div>
+                ) : error ? (
+                  <div className="alert alert-warning">{error}</div>
+                ) : (
                 <div className="list-group">
+                  {reports.length === 0 && (
+                    <div className="text-center py-4 text-muted">No reports found</div>
+                  )}
                   {reports.map((r) => (
                     <button
                       key={r.id}
@@ -151,6 +168,7 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
                     </button>
                   ))}
                 </div>
+                )}
               </div>
             </div>
           </div>
@@ -185,6 +203,56 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
                 ) : (
                   <p className="text-muted">Select a report to view details</p>
                 )}
+                <hr className="my-4" />
+                <h2 className="h6 fw-bold mb-3" style={{ color: secondaryColor }}>Create Report</h2>
+                {createError && <div className="alert alert-warning">{createError}</div>}
+                <div className="row g-2">
+                  <div className="col-12">
+                    <label className="form-label small">Type *</label>
+                    <input className="form-control" value={createForm.type} onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })} />
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label small">User Email</label>
+                    <input className="form-control" value={createForm.user_email} onChange={(e) => setCreateForm({ ...createForm, user_email: e.target.value })} />
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label small">Description</label>
+                    <textarea className="form-control" rows="3" value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} />
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label small">Severity</label>
+                    <select className="form-select" value={createForm.severity} onChange={(e) => setCreateForm({ ...createForm, severity: e.target.value })}>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <button className="btn btn-primary" disabled={creating} onClick={async () => {
+                    setCreating(true); setCreateError('');
+                    try {
+                      const resp = await adminApi.createReport(token, createForm);
+                      if (resp && resp.id) {
+                        const newReport = {
+                          id: resp.id,
+                          type: createForm.type,
+                          user: createForm.user_email,
+                          submittedBy: currentUser?.email || '',
+                          time: 'Just now',
+                          severity: String(createForm.severity || 'low').toLowerCase().replace(/(^|\s)\S/g, (t) => t.toUpperCase()),
+                          status: 'Pending',
+                          description: createForm.description,
+                        };
+                        setReports((prev) => [newReport, ...prev]);
+                        setCreateForm({ type: '', user_email: '', description: '', severity: 'low' });
+                        window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'moderation', title: 'Report Created', message: `${newReport.id} created`, time: 'Just now' } }))
+                      }
+                    } catch (e) {
+                      setCreateError(e?.message || 'Failed to create report');
+                    } finally { setCreating(false); }
+                  }}>Create</button>
+                </div>
               </div>
             </div>
           </div>

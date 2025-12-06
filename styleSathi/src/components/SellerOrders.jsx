@@ -38,10 +38,14 @@ const SellerOrders = ({
   };
 
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const load = async () => {
       if (!token) return;
+      setLoading(true);
+      setError('');
       try {
         const list = await ordersApi.getSellerOrders(token);
         const normalized = (list || []).map((o) => {
@@ -70,8 +74,11 @@ const SellerOrders = ({
           };
         });
         setOrders(normalized);
-      } catch {
+      } catch (e) {
+        setError(e?.message || 'Failed to load orders');
         setOrders([]);
+      } finally {
+        setLoading(false);
       }
     };
     load();
@@ -479,6 +486,12 @@ const SellerOrders = ({
         {/* Orders Table */}
         <div className="card border-0 shadow-sm">
           <div className="card-body">
+            {loading && (
+              <div className="text-center py-4 text-muted">Loading orders…</div>
+            )}
+            {error && !loading && (
+              <div className="alert alert-warning">{error}</div>
+            )}
             <div className="table-responsive">
               <table className="table table-hover mb-0">
                 <thead className="table-light">

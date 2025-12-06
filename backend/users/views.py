@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import SignupSerializer, LoginSerializer, UserSerializer
-from .models import User
+from .models import User, ModerationReport
 from django.utils import timezone
 from django.conf import settings
 import secrets
@@ -109,6 +109,7 @@ class SellerSignupView(APIView):
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'login'
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
@@ -206,6 +207,7 @@ class ProfileView(APIView):
 
 class ForgotPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'password_forgot'
 
     def post(self, request):
         email = request.data.get('email')
@@ -372,43 +374,39 @@ class AdminReportsView(APIView):
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        reports = [
-            {
-                'id': 'REP-2024-001',
-                'type': 'Inappropriate Behavior',
-                'user': 'customer2@stylesathi.com',
-                'submittedBy': 'moderator@stylesathi.com',
-                'time': '2 hours ago',
-                'severity': 'High',
-                'status': 'Under Review',
-                'description': 'User engaged in inappropriate communication with other users.'
-            },
-            {
-                'id': 'REP-2024-002',
-                'type': 'Fake Product',
-                'user': 'seller3@stylesathi.com',
-                'submittedBy': 'customer5@stylesathi.com',
-                'time': '5 hours ago',
-                'severity': 'Medium',
-                'status': 'Pending',
-                'description': 'Product appears counterfeit based on images and description.'
-            }
-        ]
         mongo = getattr(settings, 'MONGO_DB', None)
-        statuses = {}
         if mongo:
             try:
-                for doc in mongo['moderation_reports'].find({}):
-                    rid = doc.get('report_id')
-                    st = doc.get('status')
-                    if rid and st:
-                        statuses[str(rid)] = st
+                docs = list(mongo['moderation_reports'].find({}))
+                data = []
+                for d in docs:
+                    data.append({
+                        'id': str(d.get('report_id') or d.get('_id')),
+                        'type': d.get('type') or '',
+                        'user': d.get('user_email') or '',
+                        'submittedBy': d.get('submitted_by') or '',
+                        'time': d.get('time') or '',
+                        'severity': (d.get('severity') or '').title(),
+                        'status': (d.get('status') or '').title(),
+                        'description': d.get('description') or '',
+                    })
+                return Response({'reports': data})
             except Exception:
-                statuses = {}
-        else:
-            statuses = MODERATION_STATUSES.copy()
-        filtered = [r for r in reports if statuses.get(r['id']) not in ['Resolved', 'Rejected']]
-        return Response({'reports': filtered})
+                pass
+        qs = ModerationReport.objects.all().order_by('-created_at')
+        data = []
+        for r in qs[:500]:
+            data.append({
+                'id': r.report_id,
+                'type': r.type,
+                'user': r.user_email,
+                'submittedBy': r.submitted_by,
+                'time': '',
+                'severity': r.severity.title(),
+                'status': r.status.title(),
+                'description': r.description,
+            })
+        return Response({'reports': data})
 
     def patch(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
@@ -418,8 +416,8 @@ class AdminReportsView(APIView):
         action = (data.get('action') or data.get('status') or '').lower()
         reason = data.get('reason') or ''
         if not rid or action not in ['resolve', 'resolved', 'reject', 'rejected']:
-            return Response({'detail': 'Invalid report update'}, status=status.HTTP_400_BAD_REQUEST)
-        new_status = 'Resolved' if action.startswith('resol') else 'Rejected'
+            return Response({'code': 'invalid_report_update', 'detail': 'Invalid report update'}, status=status.HTTP_400_BAD_REQUEST)
+        new_status = 'resolved' if action.startswith('resol') else 'rejected'
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo:
             try:
@@ -433,11 +431,55 @@ class AdminReportsView(APIView):
                     }},
                     upsert=True
                 )
+                return Response({'id': rid, 'status': new_status.title()})
             except Exception:
                 pass
-        else:
-            MODERATION_STATUSES[str(rid)] = new_status
-        return Response({'id': rid, 'status': new_status})
+        obj = ModerationReport.objects.filter(report_id=rid).first()
+        if not obj:
+            return Response({'code': 'report_not_found', 'detail': 'Report not found'}, status=status.HTTP_404_NOT_FOUND)
+        obj.status = new_status
+        obj.save(update_fields=['status'])
+        return Response({'id': rid, 'status': new_status.title()})
+
+    def post(self, request):
+        if getattr(request.user, 'role', 'customer') != 'admin':
+            return Response({'code': 'forbidden', 'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        data = getattr(request, 'data', {}) or {}
+        type_ = (data.get('type') or '').strip()
+        user_email = (data.get('user_email') or '').strip()
+        submitted_by = getattr(request.user, 'email', '')
+        description = (data.get('description') or '').strip()
+        severity = (data.get('severity') or 'low').lower()
+        if not type_:
+            return Response({'code': 'invalid', 'detail': 'type is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if severity not in ['low', 'medium', 'high']:
+            return Response({'code': 'invalid', 'detail': 'severity must be low|medium|high'}, status=status.HTTP_400_BAD_REQUEST)
+        rid = f"REP-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            try:
+                mongo['moderation_reports'].insert_one({
+                    'report_id': rid,
+                    'type': type_,
+                    'user_email': user_email,
+                    'submitted_by': submitted_by,
+                    'description': description,
+                    'severity': severity,
+                    'status': 'pending',
+                    'time': timezone.now().isoformat(),
+                })
+            except Exception:
+                pass
+        ModerationReport.objects.create(
+            report_id=rid,
+            type=type_,
+            user_email=user_email,
+            submitted_by=submitted_by,
+            description=description,
+            severity=severity,
+            status='pending',
+        )
+        return Response({'id': rid, 'status': 'Pending'})
 
 class AdminDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]

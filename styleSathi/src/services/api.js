@@ -90,8 +90,11 @@ export const adminApi = {
   getUsers: (token) => json(`/auth/admin/users`, { token }),
   getReports: (token) => json(`/auth/admin/reports`, { token }),
   updateReport: (token, { id, action, reason }) => json(`/auth/admin/reports`, { method: 'PATCH', token, body: { id, action, reason } }),
+  createReport: (token, data) => json(`/auth/admin/reports`, { method: 'POST', token, body: data }),
   getDashboard: (token) => json(`/auth/admin/dashboard`, { token }),
   getAnalytics: (token) => json(`/auth/admin/analytics`, { token }),
   deleteUser: (token, { id, reason, email }) =>
     json(`/auth/admin/users`, { method: 'DELETE', token, body: { id, reason, email } }),
 };
+
+export { resolveAssetUrl, apiOrigin };

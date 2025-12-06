@@ -41,7 +41,7 @@ const HomePage = ({
   const profileDropdownRef = useRef(null);
   const [products, setProducts] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
-  const [imageErrorIds, setImageErrorIds] = useState(new Set());
+  
   
 
   useEffect(() => {
@@ -68,16 +68,7 @@ const HomePage = ({
           image_url: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
           model_glb_url: resolveAssetUrl(p.model_glb_url || p.modelGlbUrl),
         })) : list;
-        const filtered = Array.isArray(normalized)
-          ? normalized.filter((p) => {
-              const idNum = Number(p.id);
-              const img = String(p.image_url || '').toLowerCase();
-              if (idNum === 8) return false;
-              if (img.includes('product_8_download.jfif')) return false;
-              return true;
-            })
-          : normalized;
-        setProducts(filtered);
+        setProducts(Array.isArray(normalized) ? normalized : []);
       } catch { setProducts([]); }
     };
     load();
@@ -439,18 +430,6 @@ const HomePage = ({
                   >
                     {(() => {
                       const imageSrc = resolveAssetUrl(product.image_url || product.imageUrl);
-                      const fallbackGlb = resolveAssetUrl('/static/uploads/product_6_baseball_cap.glb');
-                      const shouldShowModel = ((imageErrorIds.has(product.id) || !imageSrc) && Number(product.id) === 8);
-                      if (shouldShowModel && fallbackGlb) {
-                        return (
-                          <model-viewer
-                            src={fallbackGlb}
-                            camera-controls
-                            autoplay
-                            style={{ width: '100%', height: '100%' }}
-                          />
-                        );
-                      }
                       return (
                         <img
                           src={imageSrc || styleSathiLogo}
@@ -458,7 +437,6 @@ const HomePage = ({
                           alt={product.title}
                           style={{ transition: 'transform 0.3s ease' }}
                           onError={(e) => {
-                            setImageErrorIds(prev => { const s = new Set(prev); s.add(product.id); return s; });
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = styleSathiLogo;
                           }}

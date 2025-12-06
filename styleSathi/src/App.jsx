@@ -18,32 +18,64 @@ import TryOnStudio from './components/TryOnStudio';
 import CustomerAccountSetting from './components/CustomerAccountSetting';
 
 // Seller Components
-import ManageInventory from './components/ManageInventory';
-import SellerDashboard from './components/SellerDashboard';
-import ListNewProductPage from './components/ListNewProductPage';
-import ViewAnalyticsPage from './components/ViewAnalyticsPage';
-import SellerAccountSetting from './components/SellerAccountSetting';
-import SellerOrders from './components/SellerOrders';
-import SellerOrderDetails from './components/SellerOrderDetails';
+const ManageInventory = lazy(() => import('./components/ManageInventory'));
+const SellerDashboard = lazy(() => import('./components/SellerDashboard'));
+const ListNewProductPage = lazy(() => import('./components/ListNewProductPage'));
+const ViewAnalyticsPage = lazy(() => import('./components/ViewAnalyticsPage'));
+const SellerAccountSetting = lazy(() => import('./components/SellerAccountSetting'));
+const SellerOrders = lazy(() => import('./components/SellerOrders'));
+const SellerOrderDetails = lazy(() => import('./components/SellerOrderDetails'));
 
 // Admin Components
 import AdminLogin from './components/AdminLogin';
-import AdminDashboard from './components/AdminDashboard';
-import AdminUserManagement from './components/AdminUserManagement';
-import AdminOrdersManagement from './components/AdminOrdersManagement';
-import AdminSystemSettings from './components/AdminSystemSettings';
-import AdminAnalytics from './components/AdminAnalytics';
-import AdminContentModeration from './components/AdminContentModeration';
+import { lazy, Suspense } from 'react';
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const AdminUserManagement = lazy(() => import('./components/AdminUserManagement'));
+const AdminOrdersManagement = lazy(() => import('./components/AdminOrdersManagement'));
+const AdminSystemSettings = lazy(() => import('./components/AdminSystemSettings'));
+const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
+const AdminContentModeration = lazy(() => import('./components/AdminContentModeration'));
 import AdminProductManagement from './components/AdminProductManagement';
  
 
 import { cartApi, ordersApi, catalogApi } from './services/api';
 
 const App = () => {
-  const [currentPage, setCurrentPage] = useState('login');
-  const [currentUser, setCurrentUser] = useState(null);
-  const [authTokens, setAuthTokens] = useState(null);
-  const [cartItems, setCartItems] = useState([]);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const u = localStorage.getItem('currentUser');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [authTokens, setAuthTokens] = useState(() => {
+    try {
+      const t = localStorage.getItem('authTokens');
+      return t ? JSON.parse(t) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const c = localStorage.getItem('cartItems');
+      return c ? JSON.parse(c) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const u = localStorage.getItem('currentUser');
+      const user = u ? JSON.parse(u) : null;
+      if (user?.type === 'seller') return 'seller-dashboard';
+      if (user?.type === 'admin') return 'admin-dashboard';
+      return user ? 'home' : 'login';
+    } catch {
+      return 'login';
+    }
+  });
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -54,23 +86,20 @@ const App = () => {
  
   
 
-  useEffect(() => {
-    setTimeout(() => {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('authTokens');
-      localStorage.removeItem('cartItems');
-      setCurrentUser(null);
-      setAuthTokens(null);
-      setCartItems([]);
-      setCurrentPage('login');
-    }, 0);
-  }, []);
+  
 
  
 
   // Save to localStorage when state changes
   useEffect(() => {
-    // Disabled persistence to prevent unintended auto-login
+    try {
+      if (currentUser) localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      else localStorage.removeItem('currentUser');
+      if (authTokens) localStorage.setItem('authTokens', JSON.stringify(authTokens));
+      else localStorage.removeItem('authTokens');
+      if (Array.isArray(cartItems)) localStorage.setItem('cartItems', JSON.stringify(cartItems));
+      else localStorage.removeItem('cartItems');
+    } catch { void 0; }
   }, [currentUser, authTokens, cartItems]);
 
   // LOGIN HANDLERS
@@ -758,7 +787,7 @@ const App = () => {
     }
   };
 
-  return <div className="App"><ErrorBoundary>{renderCurrentPage()}</ErrorBoundary></div>;
+  return <div className="App"><ErrorBoundary><Suspense fallback={<div className="p-4 text-center text-muted">Loading…</div>}>{renderCurrentPage()}</Suspense></ErrorBoundary></div>;
 };
 
 export default App;
