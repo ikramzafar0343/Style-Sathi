@@ -1,7 +1,7 @@
 services:
   - type: web
     name: stylesathi-backend
-    env: python
+    runtime: python
     buildCommand: |
       pip install -r backend/requirements.txt
       python backend/manage.py collectstatic --noinput
@@ -18,7 +18,7 @@ services:
       - key: BOOTSTRAP_ADMIN_EMAIL
         value: admin@stylesathi.com
       - key: BOOTSTRAP_ADMIN_PASSWORD
-        fromSecret: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
   - type: web
     name: stylesathi-frontend
     runtime: static
