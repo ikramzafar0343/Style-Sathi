@@ -10,6 +10,7 @@ from django.conf import settings
 import secrets
 from catalog.models import Product, Category
 from orders.models import Order, OrderItem
+from .mongo import sync_user, soft_delete_user
 
 RESET_TOKENS = {}
 MODERATION_STATUSES = {}
@@ -28,6 +29,12 @@ class SignupView(APIView):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            try:
+                mongo = getattr(settings, 'MONGO_DB', None)
+                if mongo:
+                    sync_user(mongo, user)
+            except Exception:
+                pass
             tokens = build_tokens(user)
             return Response({
                 'user': UserSerializer(user).data,
@@ -44,6 +51,12 @@ class SellerSignupView(APIView):
         serializer = SignupSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
+            try:
+                mongo = getattr(settings, 'MONGO_DB', None)
+                if mongo:
+                    sync_user(mongo, user)
+            except Exception:
+                pass
             tokens = build_tokens(user)
             return Response({
                 'user': UserSerializer(user).data,
@@ -78,12 +91,24 @@ class ProfileView(APIView):
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            try:
+                mongo = getattr(settings, 'MONGO_DB', None)
+                if mongo:
+                    sync_user(mongo, request.user)
+            except Exception:
+                pass
             return Response({'user': serializer.data})
         return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
         user = request.user
         user.delete()
+        try:
+            mongo = getattr(settings, 'MONGO_DB', None)
+            if mongo:
+                soft_delete_user(mongo, getattr(user, 'email', None))
+        except Exception:
+            pass
         return Response({'message': 'Account deleted'}, status=status.HTTP_200_OK)
 
 class ForgotPasswordView(APIView):
@@ -161,6 +186,25 @@ class AdminUsersListView(APIView):
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo:
+            try:
+                docs = list(mongo['users'].find({'is_active': True}).sort('date_joined', -1).limit(1000))
+                data = []
+                for d in docs:
+                    data.append({
+                        'id': d.get('_id') and f"USER-{str(d['_id'])}",
+                        'fullName': (d.get('first_name') or '') + ((' ' + d.get('last_name')) if d.get('last_name') else '') or d.get('username') or d.get('email'),
+                        'email': d.get('email'),
+                        'username': d.get('username'),
+                        'phone': d.get('phone') or '',
+                        'role': d.get('role'),
+                        'registrationDate': '',
+                        'status': 'approved'
+                    })
+                return Response({'users': data})
+            except Exception:
+                pass
         users = User.objects.filter(is_active=True).order_by('-date_joined')
         data = []
         for u in users:
