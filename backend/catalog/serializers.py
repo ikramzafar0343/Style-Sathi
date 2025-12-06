@@ -59,35 +59,31 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             raise serializers.ValidationError({'category_id': 'This field is required'})
         validated_data['category'] = category_obj
-        # Save image file to static uploads if provided
+        # Save image file to media uploads if provided
         if image is not None:
             try:
-                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
-                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
+                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{Category.objects.count()}_{image.name}"
                 safe_path = os.path.join(uploads_dir, filename)
                 with open(safe_path, 'wb') as f:
                     for chunk in image.chunks():
                         f.write(chunk)
-                validated_data['image_url'] = settings.STATIC_URL.rstrip('/') + '/uploads/' + filename
+                validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
-                validated_data['image_url'] = settings.STATIC_URL.rstrip('/') + '/uploads/placeholder.png'
+                validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/placeholder.png'
 
         # Save GLB file if provided
         if model_glb is not None:
             try:
-                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
-                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
+                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{Category.objects.count()}_{model_glb.name}"
                 safe_path = os.path.join(uploads_dir, filename)
                 with open(safe_path, 'wb') as f:
                     for chunk in model_glb.chunks():
                         f.write(chunk)
-                validated_data['model_glb_url'] = settings.STATIC_URL.rstrip('/') + '/uploads/' + filename
+                validated_data['model_glb_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 validated_data['model_glb_url'] = ''
 
@@ -124,30 +120,26 @@ class ProductSerializer(serializers.ModelSerializer):
         # File updates
         if image is not None:
             try:
-                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
-                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
+                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{instance.pk}_{image.name}"
                 safe_path = os.path.join(uploads_dir, filename)
                 with open(safe_path, 'wb') as f:
                     for chunk in image.chunks():
                         f.write(chunk)
-                instance.image_url = settings.STATIC_URL.rstrip('/') + '/uploads/' + filename
+                instance.image_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 pass
         if model_glb is not None:
             try:
-                is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-                base_dir = '/tmp' if is_render else str(settings.BASE_DIR)
-                uploads_dir = os.path.join(base_dir, 'static', 'uploads')
+                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
                 os.makedirs(uploads_dir, exist_ok=True)
                 filename = f"product_{instance.pk}_{model_glb.name}"
                 safe_path = os.path.join(uploads_dir, filename)
                 with open(safe_path, 'wb') as f:
                     for chunk in model_glb.chunks():
                         f.write(chunk)
-                instance.model_glb_url = settings.STATIC_URL.rstrip('/') + '/uploads/' + filename
+                instance.model_glb_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 pass
 

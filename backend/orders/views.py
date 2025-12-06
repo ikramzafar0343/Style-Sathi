@@ -67,7 +67,11 @@ class SellerOrderListView(APIView):
             .values_list('order_id', flat=True)
             .distinct()
         )
-        orders = Order.objects.filter(id__in=order_ids).order_by('-created_at')
+        orders = (
+            Order.objects.filter(id__in=order_ids)
+            .order_by('-created_at')
+            .prefetch_related('items__product__category', 'items__product')
+        )
         data = OrderSerializer(orders, many=True).data
         return Response(data)
 
@@ -79,7 +83,10 @@ class SellerOrderDetailView(APIView):
         if role not in ['seller', 'admin']:
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            order = Order.objects.get(id=pk)
+            order = (
+                Order.objects.filter(id=pk)
+                .prefetch_related('items__product__category', 'items__product')
+            ).first()
         except Order.DoesNotExist:
             return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
         if role != 'admin':
@@ -118,5 +125,9 @@ class AdminOrderListView(APIView):
         role = getattr(request.user, 'role', 'customer')
         if role != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        orders = Order.objects.all().order_by('-created_at')[:500]
+        orders = (
+            Order.objects.all()
+            .order_by('-created_at')
+            .prefetch_related('items__product__category', 'items__product')
+        )[:500]
         return Response(OrderSerializer(orders, many=True).data)

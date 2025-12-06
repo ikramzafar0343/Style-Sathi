@@ -167,7 +167,8 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+_is_render = os.environ.get('RENDER') or os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+MEDIA_ROOT = (Path('/tmp/media') if _is_render else (BASE_DIR / 'media'))
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 def whitenoise_add_headers(headers, path, url):
     headers['Access-Control-Allow-Origin'] = '*'
