@@ -25,7 +25,7 @@ import {
   FaDownload,
   FaUpload
 } from 'react-icons/fa';
-import { catalogApi, ordersApi } from '../services/api';
+import { catalogApi, ordersApi, resolveAssetUrl } from '../services/api';
  
 import NotificationBell from './NotificationBell';
 
@@ -136,7 +136,7 @@ const ManageInventory = ({
             status: p.in_stock ? 'active' : 'out_of_stock',
             sales: agg.sales,
             revenue: agg.revenue,
-            image: p.image_url,
+            image: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
             category: catName || 'all',
             subcategory: catName,
             lastUpdated: new Date().toISOString(),
@@ -634,10 +634,11 @@ const ManageInventory = ({
                 <div className="d-flex justify-content-between align-items-start mb-3">
                   <div className="d-flex align-items-center gap-3">
                     <img
-                      src={product.image}
+                      src={resolveAssetUrl(product.image)}
                       alt={product.name}
                       className="rounded"
                       style={{ width: '60px', height: '60px', objectFit: 'cover' }}
+                      onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }}
                     />
                     <div>
                       <h6 className="fw-semibold mb-1">{product.name}</h6>
@@ -806,10 +807,11 @@ const ManageInventory = ({
                 <td>
                   <div className="d-flex align-items-center gap-3">
                     <img
-                      src={product.image}
+                      src={resolveAssetUrl(product.image)}
                       alt={product.name}
                       className="rounded"
                       style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                      onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }}
                     />
                     <div>
                       <h6 className="fw-semibold mb-1">{product.name}</h6>

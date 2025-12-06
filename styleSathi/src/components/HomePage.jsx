@@ -13,9 +13,10 @@ import {
   FaLinkedin
 } from 'react-icons/fa';
 import { BsGrid3X3Gap, BsStarFill } from 'react-icons/bs';
-import { GiBigDiamondRing, GiWatch, GiConverseShoe } from 'react-icons/gi';
+import { GiBigDiamondRing, GiWatch, GiConverseShoe, GiTopHat, GiHairStrands } from 'react-icons/gi';
 import { IoIosGlasses } from 'react-icons/io';
-import { catalogApi } from '../services/api';
+import { FaPaintBrush, FaGem } from 'react-icons/fa';
+import { catalogApi, resolveAssetUrl } from '../services/api';
 
 const HomePage = ({
   onNavigateToProducts,
@@ -40,6 +41,8 @@ const HomePage = ({
   const profileDropdownRef = useRef(null);
   const [products, setProducts] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
+  const [imageErrorIds, setImageErrorIds] = useState(new Set());
+  
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -59,7 +62,13 @@ const HomePage = ({
       } catch { setCategoryOptions([]); }
       try {
         const list = await catalogApi.getProducts({});
-        setProducts(list);
+        const normalized = Array.isArray(list) ? list.map(p => ({
+          ...p,
+          imageUrl: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
+          image_url: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
+          model_glb_url: resolveAssetUrl(p.model_glb_url || p.modelGlbUrl),
+        })) : list;
+        setProducts(normalized);
       } catch { setProducts([]); }
     };
     load();
@@ -70,6 +79,15 @@ const HomePage = ({
 
   const mainColor = '#c4a62c';
   const secondaryColor = '#2c67c4';
+  useEffect(() => {
+    if (!document.querySelector('script[data-model-viewer]')) {
+      const s = document.createElement('script');
+      s.type = 'module';
+      s.dataset.modelViewer = '1';
+      s.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
+      document.head.appendChild(s);
+    }
+  }, []);
 
   const handleAddToCart = (product) => {
     onAddToCart(product, 1);
@@ -90,6 +108,8 @@ const HomePage = ({
   const openAIStudio = () => {
     if (typeof onNavigateToAIStudio === 'function') onNavigateToAIStudio();
   };
+
+
 
   const renderStars = (rating) => {
     const stars = [];
@@ -130,7 +150,13 @@ const HomePage = ({
     'Rings': <GiBigDiamondRing size={30} color={mainColor} />,
     'Glasses': <IoIosGlasses size={30} color={mainColor} />,
     'Watches': <GiWatch size={30} color={mainColor} />,
-    'Shoes': <GiConverseShoe size={30} color={mainColor} />
+    'Shoes': <GiConverseShoe size={30} color={mainColor} />,
+    'Cap/Hat': <GiTopHat size={30} color={mainColor} />,
+    'Hat': <GiTopHat size={30} color={mainColor} />,
+    'Hair': <GiHairStrands size={30} color={mainColor} />,
+    'Hairs': <GiHairStrands size={30} color={mainColor} />,
+    'Makeup': <FaPaintBrush size={28} color={mainColor} />,
+    'Jewelry': <FaGem size={28} color={mainColor} />
   };
 
   // Enhanced categories with all categories option
@@ -153,6 +179,8 @@ const HomePage = ({
                 onClick={() => onNavigateToProducts(null)}
               />
             </div>
+
+
 
             <div className="col-md-6">
               <div className="position-relative">
@@ -319,11 +347,11 @@ const HomePage = ({
             <p className="text-muted">Explore our wide range of premium products</p>
           </div>
 
-          <div className="row justify-content-center g-4">
+          <div className="d-flex flex-nowrap gap-3 overflow-auto px-2" style={{ scrollSnapType: 'x mandatory' }}>
             {enhancedCategories.map((category) => (
-              <div key={category.name} className="col-6 col-sm-4 col-md-3 col-lg-2">
+              <div key={category.name} className="flex-shrink-0" style={{ width: '160px' }}>
                 <div
-                  className="category-card text-center cursor-pointer p-4 rounded-3"
+                  className="category-card text-center cursor-pointer p-3 rounded-3"
                   onClick={() =>
                     category.isAllCategories
                       ? onNavigateToProducts(null)
@@ -332,10 +360,11 @@ const HomePage = ({
                   style={{
                     transition: 'all 0.3s ease',
                     border: `2px solid ${mainColor}20`,
+                    scrollSnapAlign: 'start'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-5px)';
-                    e.currentTarget.style.boxShadow = `0 8px 25px ${mainColor}20`;
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = `0 8px 20px ${mainColor}20`;
                     e.currentTarget.style.borderColor = mainColor;
                   }}
                   onMouseLeave={(e) => {
@@ -345,18 +374,18 @@ const HomePage = ({
                   }}
                 >
                   <div
-                    className="category-icon mx-auto rounded-circle d-flex align-items-center justify-content-center mb-3"
+                    className="category-icon mx-auto rounded-circle d-flex align-items-center justify-content-center mb-2"
                     style={{
-                      width: "80px",
-                      height: "80px",
+                      width: "56px",
+                      height: "56px",
                       backgroundColor: mainColor + "15",
                     }}
                   >
                     {categoryIcons[category.name]}
                   </div>
-                  <h6 className="fw-semibold mb-1" style={{ color: mainColor }}>
+                  <div className="small fw-semibold mb-1" style={{ color: mainColor }}>
                     {category.name}
-                  </h6>
+                  </div>
                   <small className="text-muted">{category.count} items</small>
                 </div>
               </div>
@@ -399,18 +428,36 @@ const HomePage = ({
                     style={{ height: "250px", overflow: "hidden", cursor: 'pointer' }}
                     onClick={() => onNavigateToProductDetail(product.id, product)}
                   >
-                    <img
-                      src={product.image_url || product.imageUrl}
-                      className="w-100 h-100 object-fit-cover"
-                      alt={product.title}
-                      style={{ transition: 'transform 0.3s ease' }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = 'scale(1.05)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'scale(1)';
-                      }}
-                    />
+                    {(() => {
+                      const imageSrc = resolveAssetUrl(product.image_url || product.imageUrl);
+                      const fallbackGlb = resolveAssetUrl('/static/uploads/product_6_baseball_cap.glb');
+                      const shouldShowModel = ((imageErrorIds.has(product.id) || !imageSrc) && Number(product.id) === 8);
+                      if (shouldShowModel && fallbackGlb) {
+                        return (
+                          <model-viewer
+                            src={fallbackGlb}
+                            camera-controls
+                            autoplay
+                            style={{ width: '100%', height: '100%' }}
+                          />
+                        );
+                      }
+                      return (
+                        <img
+                          src={imageSrc || styleSathiLogo}
+                          className="w-100 h-100 object-fit-cover"
+                          alt={product.title}
+                          style={{ transition: 'transform 0.3s ease' }}
+                          onError={(e) => {
+                            setImageErrorIds(prev => { const s = new Set(prev); s.add(product.id); return s; });
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = styleSathiLogo;
+                          }}
+                          onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; }}
+                          onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
+                        />
+                      );
+                    })()}
                     
                     {/* Removed NEW badge */}
 
@@ -501,117 +548,116 @@ const HomePage = ({
         </div>
       </section>
 
-      {/* VR Experience Section */}
-      <section className="vr-section py-5 bg-white">
-        <div className="container">
-          <div 
-            className="vr-banner position-relative rounded-4 overflow-hidden cursor-pointer"
-            onClick={onNavigateToVR}
-            style={{
-              background: `linear-gradient(135deg, ${mainColor}20, ${secondaryColor}20)`,
-              border: `2px solid ${mainColor}30`,
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.02)';
-              e.currentTarget.style.borderColor = mainColor;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.borderColor = `${mainColor}30`;
-            }}
-          >
-            <div className="row align-items-center">
-              <div className="col-md-6 p-5">
-                <h3 className="fw-bold mb-3" style={{ color: mainColor }}>
-                  Immersive AR Try-On
-                </h3>
-                <p className="text-muted mb-4">
-                  Try before you buy with our augmented reality experience.
-                  See how products look on you or in your space before making a decision.
-                </p>
-                <button
-                  className="btn px-4 py-3 d-flex align-items-center gap-2"
-                  style={{ 
-                    backgroundColor: mainColor, 
-                    color: "#fff",
-                    borderRadius: '25px',
-                    border: 'none',
-                    fontWeight: '500'
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    (typeof onNavigateToAR === 'function' ? onNavigateToAR() : (onNavigateToVR && onNavigateToVR()));
-                  }}
-                >
-                  <FaSearchPlus /> Explore AR Try-On
-                </button>
-              </div>
-              <div className="col-md-6">
-                <img
-                  src="https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=600&h=400&fit=crop"
-                  className="w-100 h-100 object-fit-cover"
-                  alt="AR Try-On"
-                  style={{ minHeight: '300px' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* AI Try-On Section */}
       <section className="py-5 bg-white">
         <div className="container">
-          <div 
-            className="position-relative rounded-4 overflow-hidden"
-            style={{
-              background: `linear-gradient(135deg, ${mainColor}20, ${secondaryColor}20)`,
-              border: `2px solid ${mainColor}30`,
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.02)';
-              e.currentTarget.style.borderColor = mainColor;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.borderColor = `${mainColor}30`;
-            }}
-          >
-            <div className="row align-items-center">
-              <div className="col-md-6 p-5">
-                <h3 className="fw-bold mb-3" style={{ color: mainColor }}>
-                  AI Try-On Studio
-                </h3>
-                <p className="text-muted mb-4">
-                  Experiment with makeup, jewelry, hair and accessories using your camera.
-                  Powered by Mediapipe + Gemini + Groq.
-                </p>
-                <button
-                  className="btn px-4 py-3 d-flex align-items-center gap-2"
-                  style={{ 
-                    backgroundColor: mainColor, 
-                    color: "#fff",
-                    borderRadius: '25px',
-                    border: 'none',
-                    fontWeight: '500'
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openAIStudio();
-                  }}
-                >
-                  <FaSearchPlus /> Open Studio
-                </button>
+          <div className="d-flex flex-nowrap gap-4 overflow-auto px-2" style={{ scrollSnapType: 'x mandatory' }}>
+            <div className="flex-shrink-0" style={{ width: '640px' }}>
+              <div
+                className="position-relative rounded-4 overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${mainColor}20, ${secondaryColor}20)`,
+                  border: `2px solid ${mainColor}30`,
+                  transition: 'all 0.3s ease',
+                  scrollSnapAlign: 'start'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.borderColor = mainColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.borderColor = `${mainColor}30`;
+                }}
+              >
+                <div className="row align-items-center">
+                  <div className="col-md-6 p-4">
+                    <h3 className="fw-bold mb-3" style={{ color: mainColor }}>
+                      Immersive AR Try-On
+                    </h3>
+                    <p className="text-muted mb-4">
+                      Try before you buy with augmented reality. See products on you or in your space.
+                    </p>
+                    <button
+                      className="btn px-4 py-3 d-flex align-items-center gap-2"
+                      style={{ 
+                        backgroundColor: mainColor, 
+                        color: '#fff',
+                        borderRadius: '25px',
+                        border: 'none',
+                        fontWeight: '500'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (typeof onNavigateToAR === 'function' ? onNavigateToAR() : (onNavigateToVR && onNavigateToVR()));
+                      }}
+                    >
+                      <FaSearchPlus /> Explore AR Try-On
+                    </button>
+                  </div>
+                  <div className="col-md-6">
+                    <img
+                      src="https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=600&h=400&fit=crop"
+                      className="w-100 h-100 object-fit-cover"
+                      alt="AR Try-On"
+                      style={{ minHeight: '300px' }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="col-md-6">
-                <img
-                  src="https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=600&h=400&fit=crop"
-                  className="w-100 h-100 object-fit-cover"
-                  alt="AI Try-On"
-                  style={{ minHeight: '300px' }}
-                />
+            </div>
+
+            <div className="flex-shrink-0" style={{ width: '640px' }}>
+              <div
+                className="position-relative rounded-4 overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${mainColor}20, ${secondaryColor}20)`,
+                  border: `2px solid ${mainColor}30`,
+                  transition: 'all 0.3s ease',
+                  scrollSnapAlign: 'start'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.borderColor = mainColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.borderColor = `${mainColor}30`;
+                }}
+              >
+                <div className="row align-items-center">
+                  <div className="col-md-6 p-4">
+                    <h3 className="fw-bold mb-3" style={{ color: mainColor }}>
+                      AI Try-On Studio
+                    </h3>
+                    <p className="text-muted mb-4">
+                      Experiment with makeup, jewelry, hair and accessories using your camera.
+                    </p>
+                    <button
+                      className="btn px-4 py-3 d-flex align-items-center gap-2"
+                      style={{ 
+                        backgroundColor: mainColor, 
+                        color: '#fff',
+                        borderRadius: '25px',
+                        border: 'none',
+                        fontWeight: '500'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAIStudio();
+                      }}
+                    >
+                      <FaSearchPlus /> Open Studio
+                    </button>
+                  </div>
+                  <div className="col-md-6">
+                    <img
+                      src="https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=600&h=400&fit=crop"
+                      className="w-100 h-100 object-fit-cover"
+                      alt="AI Try-On"
+                      style={{ minHeight: '300px' }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

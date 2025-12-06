@@ -25,7 +25,7 @@ import { IoIosTrendingUp, IoIosTrendingDown } from "react-icons/io";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 
 // Import sample data
-import { catalogApi, ordersApi } from '../services/api';
+import { catalogApi, ordersApi, resolveAssetUrl } from '../services/api';
 import NotificationBell from './NotificationBell';
 
 const SellerDashboard = ({ 
@@ -638,7 +638,7 @@ const SellerDashboard = ({
                   <div className="card-body text-center">
                     <div className="position-relative mb-3">
                       <img 
-                        src={product.imageUrl} 
+                        src={resolveAssetUrl(product.imageUrl || product.image_url)} 
                         alt={product.title}
                         className="rounded"
                         style={{
@@ -646,6 +646,7 @@ const SellerDashboard = ({
                           height: '80px',
                           objectFit: 'cover'
                         }}
+                        onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }}
                       />
                       <span className="position-absolute top-0 start-100 translate-middle badge bg-primary">
                         #{index + 1}

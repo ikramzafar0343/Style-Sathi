@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'replace-me-in-production')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes')
 ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h]
 
 INSTALLED_APPS = [
@@ -147,17 +147,26 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL', 'False').lower() in ('1', 'true', 'yes')
+CORS_ALLOW_ALL_ORIGINS = True
 default_cors = 'http://localhost:5173,http://127.0.0.1:5173'
 CORS_ALLOWED_ORIGINS = [o for o in os.environ.get('CORS_ALLOWED_ORIGINS', default_cors).split(',') if o]
+CORS_URLS_REGEX = r'^.*$'
 
 CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if o]
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+def whitenoise_add_headers(headers, path, url):
+    headers['Access-Control-Allow-Origin'] = '*'
+    headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    headers['Access-Control-Allow-Headers'] = 'Origin, Content-Type, Accept, Range'
+    if str(path).lower().endswith(('.gltf', '.glb', '.bin', '.png', '.jpg', '.jpeg', '.webp')):
+        headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+WHITENOISE_ADD_HEADERS_FUNCTION = 'stylesathi_backend.settings.whitenoise_add_headers'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')

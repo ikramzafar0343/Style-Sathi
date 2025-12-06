@@ -19,7 +19,7 @@ import {
 } from "react-icons/fa";
 import { BsStarFill } from "react-icons/bs";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
-import { catalogApi } from '../services/api';
+import { catalogApi, resolveAssetUrl } from '../services/api';
 
 const ShoppingCartPage = ({ 
   cartItems = [], 
@@ -73,7 +73,7 @@ const ShoppingCartPage = ({
           id: p.id,
           title: p.title,
           price: Number(p.price || 0),
-          imageUrl: p.image_url || p.image,
+          imageUrl: resolveAssetUrl(p.image_url || p.image),
           brand: p.brand,
           rating: Number(p.rating || 0),
           category: typeof p.category === 'string' ? p.category : (p.category?.name || '')
@@ -316,7 +316,7 @@ const ShoppingCartPage = ({
                   <div className="col-md-3 d-flex align-items-center justify-content-center">
                     <div className="bg-light rounded d-flex align-items-center justify-content-center w-100 overflow-hidden" style={{ height: "140px" }}>
                       <img 
-                        src={item.imageUrl || item.image} 
+                        src={resolveAssetUrl(item.imageUrl || item.image)} 
                         alt={item.title || item.name}
                         className="img-fluid"
                         style={{ maxHeight: "100%", objectFit: "cover" }}
@@ -519,7 +519,7 @@ const ShoppingCartPage = ({
                 >
                   <div className="bg-light rounded d-flex align-items-center justify-content-center overflow-hidden" style={{ height: "180px" }}>
                     <img 
-                      src={product.imageUrl} 
+                      src={resolveAssetUrl(product.imageUrl)} 
                       alt={product.title}
                       className="img-fluid"
                       style={{ maxHeight: "100%", objectFit: "cover" }}

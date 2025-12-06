@@ -9,7 +9,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         User = get_user_model()
         seller = User.objects.filter(email='seller@stylesathi.com').first()
-        categories = ['Rings', 'Glasses', 'Watches', 'Shoes']
+        categories = ['Rings', 'Glasses', 'Watches', 'Shoes', 'Cap/Hat', 'Hairs', 'Makeup', 'Jewelry']
         cat_objs = {}
         for name in categories:
             cat, _ = Category.objects.get_or_create(name=name)

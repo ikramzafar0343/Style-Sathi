@@ -8,7 +8,7 @@ import {
   FaArrowLeft,
 } from "react-icons/fa";
 import { BsGrid3X3Gap, BsStarFill, BsListUl } from "react-icons/bs";
-import { catalogApi } from '../services/api';
+import { catalogApi, resolveAssetUrl } from '../services/api';
 import NotificationBell from './NotificationBell';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 
@@ -63,7 +63,7 @@ const ProductListingPage = ({
         rating: Number(p?.rating || 0),
         price: Number(p?.price || 0),
       }));
-      setProducts(normalized);
+      setProducts([...normalized]);
     } catch {
       setProducts([]);
     } finally {
@@ -78,7 +78,7 @@ const ProductListingPage = ({
         rating: Number(p?.rating || 0),
         price: Number(p?.price || 0),
       }));
-      setAllProductsForCounts(normalizedAll);
+      setAllProductsForCounts([...normalizedAll]);
     } catch {
       setAllProductsForCounts([]);
     }
@@ -643,23 +643,30 @@ const ProductListingPage = ({
                           overflow: 'hidden'
                         }}
                       >
-                        <img
-                          src={product.imageUrl}
-                          alt={product.title}
-                          className="w-100 h-100 object-fit-cover"
-                          style={{ 
-                            transition: 'transform 0.3s ease',
-                            filter: !product.inStock ? 'grayscale(50%)' : 'none'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (product.inStock) {
-                              e.target.style.transform = 'scale(1.05)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = 'scale(1)';
-                          }}
-                        />
+                        {product.image_url || product.imageUrl ? (
+                          <img
+                            src={resolveAssetUrl(product.image_url || product.imageUrl)}
+                            alt={product.title}
+                            className="w-100 h-100 object-fit-cover"
+                            style={{ 
+                              transition: 'transform 0.3s ease',
+                              filter: !product.inStock ? 'grayscale(50%)' : 'none'
+                            }}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = styleSathiLogo; }}
+                            onMouseEnter={(e) => {
+                              if (product.inStock) {
+                                e.target.style.transform = 'scale(1.05)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = 'scale(1)';
+                            }}
+                          />
+                        ) : (
+                          <div className="rounded d-flex align-items-center justify-content-center w-100 h-100" style={{ backgroundColor: `${secondaryColor}20`, border: `2px solid ${secondaryColor}30` }}>
+                            <FaSearchPlus style={{ color: secondaryColor }} />
+                          </div>
+                        )}
                         
                         {/* Sale Badge */}
                         {product.originalPrice && (

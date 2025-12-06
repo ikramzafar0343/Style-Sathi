@@ -18,7 +18,7 @@ import {
 } from "react-icons/fa";
 import { BsSearch, BsStarFill } from "react-icons/bs";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
-import { catalogApi } from '../services/api';
+import { catalogApi, resolveAssetUrl } from '../services/api';
 
 const ProductDetailPage = ({ 
   productId, 
@@ -98,7 +98,7 @@ const ProductDetailPage = ({
   
 
   // Generate product images array
-  const mainImage = product ? (product.image_url || product.image || product.imageUrl) : null;
+  const mainImage = product ? resolveAssetUrl(product.image_url || product.image || product.imageUrl) : null;
   const productImages = product ? [
     mainImage,
     'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=500&fit=crop',
@@ -109,7 +109,7 @@ const ProductDetailPage = ({
   const thumbnails = productImages.map((imageUrl, index) => ({
     id: index + 1,
     label: ['Front View', 'Side View', 'Top View', 'Detail View'][index],
-    imageUrl
+    imageUrl: resolveAssetUrl(imageUrl)
   }));
 
   const sizes = ['6', '6.5', '7', '7.5', '8', '8.5', '9'];
@@ -158,21 +158,7 @@ const ProductDetailPage = ({
       />
     ));
   };
-  const getApiOrigin = () => {
-    const host = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_HOST)
-      || (typeof window !== 'undefined' && window.location && window.location.hostname)
-      || 'localhost';
-    const normalizedHost = (!host || host === '0.0.0.0' || host === '::') ? 'localhost' : host;
-    const port = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) || '8000';
-    const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
-    return `${protocol}://${normalizedHost}:${port}`;
-  };
-  const resolveAssetUrl = (u) => {
-    if (!u) return '';
-    if (u.startsWith('http://') || u.startsWith('https://')) return u;
-    const origin = getApiOrigin();
-    return `${origin}${u.startsWith('/') ? '' : '/'}${u}`;
-  };
+  
   const handleSearchKey = (e) => {
     if (e.key === 'Enter') {
       const q = String(searchQuery || '').trim();
@@ -257,7 +243,7 @@ const ProductDetailPage = ({
               <div className="position-relative">
                 <input
                   className="form-control ps-5 py-2"
-                  placeholder="Search for rings, watches, glasses, shoes..."
+                  placeholder="Search rings, glasses, watches, shoes, cap/hat, hairs, makeup, jewelry..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={handleSearchKey}

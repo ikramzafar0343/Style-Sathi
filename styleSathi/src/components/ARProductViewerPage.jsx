@@ -13,7 +13,7 @@ import {
 import { BsSearch } from "react-icons/bs";
 import TryOnBase from './tryon/TryOnBase';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
-import { catalogApi } from '../services/api';
+import { catalogApi, resolveAssetUrl } from '../services/api';
 
 const mainColor = "#c4a62c";
 const secondaryColor = "#2c67c4";
@@ -43,9 +43,12 @@ const ARProductViewer = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const [modelError, setModelError] = useState(false);
+  
   
   const profileDropdownRef = useRef(null);
   const viewerRef = useRef(null);
+  const modelViewerRef = useRef(null);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -64,6 +67,8 @@ const ARProductViewer = ({
       document.head.appendChild(s);
     }
   };
+
+  
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -85,8 +90,8 @@ const ARProductViewer = ({
             id: p.id,
             title: p.title || p.name,
             price: Number(p.price),
-            imageUrl: p.image_url || p.image,
-            modelGlbUrl: p.model_glb_url || '',
+            imageUrl: resolveAssetUrl(p.image_url || p.image),
+            modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
             sketchfabEmbedUrl: p.sketchfab_embed_url || '',
             brand: p.brand,
             category: typeof p.category === 'string' ? p.category : (p.category?.name || ''),
@@ -118,6 +123,15 @@ const ARProductViewer = ({
   const displayedProducts = getFilteredProducts();
 
   const productData = selectedProduct || product || internalProducts[0];
+  useEffect(() => {
+    const mv = modelViewerRef.current;
+    if (!mv) return;
+    const onErr = () => setModelError(true);
+    const onLoad = () => setModelError(false);
+    mv.addEventListener('error', onErr);
+    mv.addEventListener('load', onLoad);
+    return () => { mv.removeEventListener('error', onErr); mv.removeEventListener('load', onLoad); };
+  }, [productData && (productData.modelGlbUrl || productData.model_glb_url)]);
   const userName = currentUser?.name || currentUser?.username || 'Customer';
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const sketchfabUrl = (
@@ -310,7 +324,7 @@ const ARProductViewer = ({
               </div>
               {productData.imageUrl && (
                 <div className="mb-4">
-                  <img src={productData.imageUrl} alt={productData.title || 'Product'} className="img-fluid rounded border" style={{ borderColor: `${mainColor}30` }} />
+                  <img src={resolveAssetUrl(productData.imageUrl)} alt={productData.title || 'Product'} className="img-fluid rounded border" style={{ borderColor: `${mainColor}30` }} onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }} />
                 </div>
               )}
               <div className="mb-4">
@@ -351,11 +365,11 @@ const ARProductViewer = ({
               <div className="text-center text-white w-100">
                 {sketchfabUrl ? (
                   <iframe title="Sketchfab AR" frameBorder="0" allowFullScreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking="" execution-while-out-of-viewport="" execution-while-not-rendered="" web-share="" src={String(sketchfabUrl)} style={{ width: '100%', height: '60vh', border: '0' }}></iframe>
-                ) : productData?.modelGlbUrl ? (
-                  <model-viewer src={resolveAssetUrl(productData.modelGlbUrl)} ar ar-modes="webxr scene-viewer quick-look" camera-controls style={{ width: '100%', height: '60vh' }}></model-viewer>
+                ) : (productData?.modelGlbUrl && !modelError) ? (
+                  <model-viewer ref={modelViewerRef} src={resolveAssetUrl(productData.modelGlbUrl)} ar ar-modes="webxr scene-viewer quick-look" camera-controls style={{ width: '100%', height: '60vh' }}></model-viewer>
                 ) : productData.imageUrl ? (
                   <div className="position-relative">
-                    <img src={productData.imageUrl} alt={productData.title || 'Product'} className="img-fluid rounded" style={{ maxHeight: '60vh', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))', transform: `scale(${scale})`, transition: 'transform 0.2s ease' }} />
+                    <img src={resolveAssetUrl(productData.imageUrl)} alt={productData.title || 'Product'} className="img-fluid rounded" style={{ maxHeight: '60vh', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))', transform: `scale(${scale})`, transition: 'transform 0.2s ease' }} onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }} />
                   </div>
                 ) : (
                   <div className="mb-5">
@@ -401,6 +415,7 @@ const ARProductViewer = ({
             <div className="d-grid gap-2">
               <button onClick={() => { setTryOnMode('face'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Face</button>
               <button onClick={() => { setTryOnMode('hand'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Hand</button>
+              <button onClick={() => { setTryOnMode('wrist'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Wrist</button>
               <button onClick={() => { setTryOnMode('feet'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Feet</button>
               <button onClick={() => { setTryOnMode('body'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Body</button>
             </div>
@@ -431,8 +446,8 @@ const ARProductViewer = ({
 
       {showTryOn && (
         <TryOnBase
-          overlaySrc={(productData?.modelGlbUrl || productData?.model_glb_url) ? '' : (productData?.imageUrl || productData?.image_url)}
-          modelGlbUrl={productData?.modelGlbUrl || productData?.model_glb_url || ''}
+          overlaySrc={(productData?.modelGlbUrl || productData?.model_glb_url) ? '' : resolveAssetUrl(productData?.imageUrl || productData?.image_url)}
+          modelGlbUrl={resolveAssetUrl(productData?.modelGlbUrl || productData?.model_glb_url || '')}
           mode={tryOnMode}
           onClose={() => setShowTryOn(false)}
         />
@@ -466,18 +481,3 @@ const ARProductViewer = ({
 };
 
 export default ARProductViewer;
-  const getApiOrigin = () => {
-    const host = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_HOST)
-      || (typeof window !== 'undefined' && window.location && window.location.hostname)
-      || 'localhost';
-    const normalizedHost = (!host || host === '0.0.0.0' || host === '::') ? 'localhost' : host;
-    const port = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) || '8000';
-    const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
-    return `${protocol}://${normalizedHost}:${port}`;
-  };
-  const resolveAssetUrl = (u) => {
-    if (!u) return '';
-    if (u.startsWith('http://') || u.startsWith('https://')) return u;
-    const origin = getApiOrigin();
-    return `${origin}${u.startsWith('/') ? '' : '/'}${u}`;
-  };

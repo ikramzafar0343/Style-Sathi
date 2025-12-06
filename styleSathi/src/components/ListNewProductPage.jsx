@@ -63,7 +63,7 @@ const ListNewProductPage = ({
   const mainColor = "#c4a62c";
   const secondaryColor = "#2c67c4";
 
-  const [categoriesList, setCategoriesList] = useState(['Rings', 'Glasses', 'Watches', 'Shoes']);
+  const [categoriesList, setCategoriesList] = useState(['Rings', 'Glasses', 'Watches', 'Shoes', 'Cap/Hat', 'Hairs', 'Makeup', 'Jewelry']);
   const [categoriesMap, setCategoriesMap] = useState({});
   const usageDurations = [
     'Less than 1 month',
@@ -97,7 +97,7 @@ const ListNewProductPage = ({
         for (const c of cats) { map[c.name] = c.id; }
         setCategoriesMap(map);
       } catch {
-        setCategoriesList(['Rings', 'Glasses', 'Watches', 'Shoes']);
+        setCategoriesList(['Rings', 'Glasses', 'Watches', 'Shoes', 'Cap/Hat', 'Hairs', 'Makeup', 'Jewelry']);
         setCategoriesMap({});
       }
     };

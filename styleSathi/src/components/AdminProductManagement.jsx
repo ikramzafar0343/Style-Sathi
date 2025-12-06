@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { FaArrowLeft, FaSearch, FaFilter, FaUpload, FaTrash, FaCubes, FaEye } from 'react-icons/fa';
 import NotificationBell from './NotificationBell';
-import { catalogApi } from '../services/api';
+import { catalogApi, resolveAssetUrl } from '../services/api';
 
 const AdminProductManagement = ({ onBack, token }) => {
   const mainColor = '#2c67c4';
@@ -160,7 +160,7 @@ const AdminProductManagement = ({ onBack, token }) => {
 
   const openArPreview = (glbUrl) => {
     if (!glbUrl) { alert('No GLB available'); return; }
-    setArPreviewUrl(glbUrl);
+    setArPreviewUrl(resolveAssetUrl(glbUrl));
     setShowArPreview(true);
   };
 

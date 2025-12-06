@@ -2,10 +2,22 @@ const baseOverride = (typeof import.meta !== 'undefined' && import.meta.env && i
 const host = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_HOST) 
   || (typeof window !== 'undefined' && window.location && window.location.hostname) 
   || 'localhost';
-const normalizedHost = (!host || host === '0.0.0.0' || host === '::') ? 'localhost' : host;
+const normalizedHost = (!host || host === '0.0.0.0' || host === '::' || host === '127.0.0.1') ? 'localhost' : host;
 const port = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) || '8000';
 const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
 const BASE_URL = baseOverride || `${protocol}://${normalizedHost}:${port}/api`;
+const API_ORIGIN = (() => {
+  try { return new URL(BASE_URL).origin; } catch { return `${protocol}://${normalizedHost}:${port}`; }
+})();
+const IS_DEV = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
+
+export const resolveAssetUrl = (u) => {
+  const s = typeof u === 'string' ? u.trim() : String(u || '').trim();
+  if (!s) return null;
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (IS_DEV && (s.startsWith('/static') || s.startsWith('/media'))) return s; 
+  return `${API_ORIGIN}${s.startsWith('/') ? '' : '/'}${s}`;
+};
 
 const json = async (url, options = {}) => {
   const resp = await fetch(url, {
