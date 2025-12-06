@@ -166,7 +166,7 @@ def whitenoise_add_headers(headers, path, url):
     headers['Access-Control-Allow-Headers'] = 'Origin, Content-Type, Accept, Range'
     if str(path).lower().endswith(('.gltf', '.glb', '.bin', '.png', '.jpg', '.jpeg', '.webp')):
         headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-WHITENOISE_ADD_HEADERS_FUNCTION = 'stylesathi_backend.settings.whitenoise_add_headers'
+WHITENOISE_ADD_HEADERS_FUNCTION = whitenoise_add_headers
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
