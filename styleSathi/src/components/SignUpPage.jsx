@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Swal from 'sweetalert2'
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import { authApi } from '../services/api'
 import {
@@ -125,7 +126,7 @@ const SignUpScreen = ({
       onSignUpComplete && onSignUpComplete(enriched)
     } catch (error) {
       console.error('Sign up error:', error)
-      alert('Sign up failed. Please try again.')
+      Swal.fire({ icon: 'error', title: 'Sign Up Failed', text: 'Please try again.' })
     } finally {
       setIsLoading(false)
     }

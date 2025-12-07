@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import {
   FaShoppingCart,
   FaUser,
@@ -256,8 +257,7 @@ const SellerDashboard = ({
         onSearch(searchQuery);
       } else {
         console.log('Search functionality:', searchQuery);
-        // Default search behavior if no prop provided
-        alert(`Searching for: ${searchQuery}`);
+        Swal.fire({ icon: 'info', title: 'Search', text: `Searching for: ${searchQuery}` });
       }
     }
   };
@@ -268,8 +268,7 @@ const SellerDashboard = ({
       onNavigateToOrderDetails(activity.orderId, activity.productId);
     } else {
       console.log('Navigate to order details:', activity);
-      // Fallback behavior
-      alert(`Navigating to order details for ${activity.name}`);
+      Swal.fire({ icon: 'info', title: 'Order Details', text: `Navigating to order details for ${activity.name}` });
     }
   };
 
@@ -279,8 +278,7 @@ const SellerDashboard = ({
       onNavigateToAnalytics(product.id);
     } else {
       console.log('Navigate to analytics for product:', product);
-      // Fallback behavior
-      alert(`Navigating to analytics for ${product.title}`);
+      Swal.fire({ icon: 'info', title: 'Analytics', text: `Navigating to analytics for ${product.title}` });
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import Swal from 'sweetalert2'
 import {
   FaArrowLeft,
   FaFlag,
@@ -78,7 +79,7 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
       updateReportStatusLocal(resp.id, resp.status)
       setModerationNote('')
     } catch (e) {
-      alert(`Resolve failed: ${e.message}`)
+      Swal.fire({ icon: 'error', title: 'Resolve Failed', text: e?.message || 'Failed to resolve report' })
     }
   }
 
@@ -89,7 +90,7 @@ const AdminContentModeration = ({ onBack, onLogout, currentUser, token }) => {
       updateReportStatusLocal(resp.id, resp.status)
       setModerationNote('')
     } catch (e) {
-      alert(`Reject failed: ${e.message}`)
+      Swal.fire({ icon: 'error', title: 'Reject Failed', text: e?.message || 'Failed to reject report' })
     }
   }
 

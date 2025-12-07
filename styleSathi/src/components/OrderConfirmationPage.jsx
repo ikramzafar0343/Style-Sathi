@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import Swal from 'sweetalert2'
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import {
   FaShoppingCart,
@@ -286,14 +287,14 @@ const OrderConfirmationPage = ({
   };
 
   const handleContactSupport = () => {
-    alert('Contact support functionality would be implemented here');
+    Swal.fire({ icon: 'info', title: 'Support', text: 'Contact support functionality would be implemented here' });
   };
 
   const handleOrderAgain = () => {
     if (onNavigateToShop) {
       onNavigateToShop();
     } else {
-      alert('Order again functionality would be implemented here');
+      Swal.fire({ icon: 'info', title: 'Order Again', text: 'Order again functionality would be implemented here' });
     }
   };
 
@@ -301,7 +302,7 @@ const OrderConfirmationPage = ({
     if (onNavigateToTrackOrder) {
       onNavigateToTrackOrder(orderData.id);
     } else {
-      alert(`Track order functionality for ${orderData.id}`);
+      Swal.fire({ icon: 'info', title: 'Track Order', text: `Track order functionality for ${orderData.id}` });
     }
   };
 

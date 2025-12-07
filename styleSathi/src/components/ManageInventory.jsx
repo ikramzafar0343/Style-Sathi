@@ -1,5 +1,6 @@
 // src/components/ManageInventory.jsx
 import { useState, useRef, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import { 
   FaUser, 
@@ -416,7 +417,7 @@ const ManageInventory = ({
     if (showDeleteConfirm) {
       const reason = prompt('Enter reason for deletion');
       if (!reason || !reason.trim()) {
-        alert('Deletion reason is required');
+        Swal.fire({ icon: 'warning', title: 'Reason Required', text: 'Deletion reason is required' });
         return;
       }
       try {
@@ -424,7 +425,7 @@ const ManageInventory = ({
         setProducts(products.filter(p => p.id !== showDeleteConfirm));
         window.dispatchEvent(new Event('catalogInvalidated'));
       } catch (e) {
-        alert(`Delete failed: ${e.message}`);
+        Swal.fire({ icon: 'error', title: 'Delete Failed', text: e?.message || 'Failed to delete product' });
       }
       setShowDeleteConfirm(null);
     }

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import Swal from 'sweetalert2';
 
 // Customer Components
 import LoginScreen from './components/LoginScreen';
@@ -28,7 +30,6 @@ const SellerOrderDetails = lazy(() => import('./components/SellerOrderDetails'))
 
 // Admin Components
 import AdminLogin from './components/AdminLogin';
-import { lazy, Suspense } from 'react';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const AdminUserManagement = lazy(() => import('./components/AdminUserManagement'));
 const AdminOrdersManagement = lazy(() => import('./components/AdminOrdersManagement'));
@@ -384,7 +385,7 @@ const App = () => {
     // You can implement search logic here or navigate to search results
     console.log('Searching for:', query);
     // For now, just show an alert
-    alert(`Searching for: ${query}`);
+    Swal.fire({ icon: 'info', title: 'Search', text: `Searching for: ${query}` });
   };
 
   const handleNavigateToOrderDetails = (orderId, productId) => {

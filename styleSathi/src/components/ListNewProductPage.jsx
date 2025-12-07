@@ -1,5 +1,6 @@
 // src/components/ListNewProductPage.jsx
 import { useState, useRef, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import TryOnBase from './tryon/TryOnBase';
 import { catalogApi } from '../services/api';
 import {
@@ -162,7 +163,7 @@ const ListNewProductPage = ({
     } else {
       setGlbFile(null);
       setGlbObjectUrl('');
-      alert('Please upload a valid .glb file');
+      Swal.fire({ icon: 'warning', title: 'Invalid File', text: 'Please upload a valid .glb file' });
     }
   };
 
@@ -217,7 +218,7 @@ const ListNewProductPage = ({
     const missingFields = requiredFields.filter(field => !formData[field]);
     
     if (missingFields.length > 0) {
-      alert('Please fill in all required fields');
+      Swal.fire({ icon: 'warning', title: 'Missing Fields', text: 'Please fill in all required fields' });
       setIsLoading(false);
       return;
     }
@@ -225,16 +226,16 @@ const ListNewProductPage = ({
     // Client-side validation and minimal payload expected by backend
     const priceNum = Number(formData.price);
     const stockNum = Number(formData.stock) || 0;
-    if (!formData.name?.trim()) return alert('Product name is required');
-    if (!formData.description?.trim()) return alert('Product description is required');
-    if (!formData.category?.trim()) return alert('Product category is required');
-    if (!formData.brand?.trim()) return alert('Product brand is required');
+    if (!formData.name?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product name is required' }); return; }
+    if (!formData.description?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product description is required' }); return; }
+    if (!formData.category?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product category is required' }); return; }
+    if (!formData.brand?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product brand is required' }); return; }
     if (!categoriesMap[formData.category]) {
-      alert('Please select a valid category from the list');
+      Swal.fire({ icon: 'warning', title: 'Invalid Category', text: 'Please select a valid category from the list' });
       setIsLoading(false);
       return;
     }
-    if (!Number.isFinite(priceNum) || priceNum <= 0) return alert('Price must be a positive number');
+    if (!Number.isFinite(priceNum) || priceNum <= 0) { Swal.fire({ icon: 'warning', title: 'Invalid Price', text: 'Price must be a positive number' }); return; }
     const isValidHttpUrl = (u) => {
       try {
         const url = new URL(u);
@@ -250,7 +251,7 @@ const ListNewProductPage = ({
       imageUrl = rawImageUrl;
       if (!imageUrl || !isValidHttpUrl(imageUrl)) {
         imageUrl = 'https://via.placeholder.com/600x600?text=Product+Image';
-        alert('Using a placeholder image URL. Please provide a valid https image URL to display your product image.');
+        Swal.fire({ icon: 'info', title: 'Placeholder Image', text: 'Using a placeholder image URL. Please provide a valid https image URL to display your product image.' });
       }
     }
 
@@ -293,12 +294,12 @@ const ListNewProductPage = ({
       window.dispatchEvent(new Event('catalogInvalidated'));
       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'product-listed', title: 'Product Listed', message: `${payload.title} listed successfully`, time: 'Just now' } }))
       setIsLoading(false);
-      alert('Product listed successfully');
+      Swal.fire({ icon: 'success', title: 'Success', text: 'Product listed successfully' });
       if (onManageInventory) onManageInventory();
       else onBack();
     } catch (e) {
       setIsLoading(false);
-      alert(`Failed to list product: ${e.message}`);
+      Swal.fire({ icon: 'error', title: 'Listing Failed', text: e.message || 'Failed to list product' });
     }
   };
 
@@ -763,7 +764,7 @@ const ListNewProductPage = ({
                           onClick={() => {
                             if (glbFile) { setArPreviewMode('glb'); setShowARPreview(true); }
                             else if (formData.images[0]) { setArPreviewMode('image'); setShowARPreview(true); }
-                            else { alert('Please upload a GLB or an image first'); }
+                            else { Swal.fire({ icon: 'info', title: 'Preview Unavailable', text: 'Please upload a GLB or an image first' }); }
                           }}
                         >
                           Preview in AR

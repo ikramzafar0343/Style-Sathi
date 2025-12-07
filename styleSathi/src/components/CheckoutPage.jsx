@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import Swal from 'sweetalert2'
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import {
   FaShoppingCart,
@@ -78,21 +79,21 @@ const CheckoutPage = ({
 
   const handleAddNewAddress = () => {
     if (!newAddress.fullName || !newAddress.email || !newAddress.phoneNumber || !newAddress.cnic || !newAddress.streetAddress || !newAddress.city || !newAddress.zipCode || !newAddress.country) {
-      alert('Please fill in all required fields')
+      Swal.fire({ icon: 'warning', title: 'Missing Fields', text: 'Please fill in all required fields' })
       return
     }
 
     // Validate phone number (basic validation)
     const phoneRegex = /^\+?[\d\s-()]{10,}$/;
     if (!phoneRegex.test(newAddress.phoneNumber)) {
-      alert('Please enter a valid phone number');
+      Swal.fire({ icon: 'warning', title: 'Invalid Phone', text: 'Please enter a valid phone number' });
       return;
     }
 
     // Validate CNIC (basic validation for 13 digits)
     const cnicRegex = /^\d{13}$/;
     if (!cnicRegex.test(newAddress.cnic.replace(/\D/g, ''))) {
-      alert('Please enter a valid 13-digit CNIC number');
+      Swal.fire({ icon: 'warning', title: 'Invalid CNIC', text: 'Please enter a valid 13-digit CNIC number' });
       return;
     }
 
@@ -155,7 +156,7 @@ const CheckoutPage = ({
   const handleDeleteAddress = (addressId, e) => {
     e.stopPropagation()
     if (savedAddresses.length <= 1) {
-      alert('You must have at least one saved address')
+      Swal.fire({ icon: 'warning', title: 'Cannot Delete', text: 'You must have at least one saved address' })
       return
     }
     
@@ -196,26 +197,26 @@ const CheckoutPage = ({
     const missingFields = requiredFields.filter(field => !formData[field]);
     
     if (missingFields.length > 0) {
-      alert('Please fill in all required fields')
+      Swal.fire({ icon: 'warning', title: 'Missing Fields', text: 'Please fill in all required fields' })
       return
     }
     
     // Validate phone number
     const phoneRegex = /^\+?[\d\s-()]{10,}$/;
     if (!phoneRegex.test(formData.phoneNumber)) {
-      alert('Please enter a valid phone number');
+      Swal.fire({ icon: 'warning', title: 'Invalid Phone', text: 'Please enter a valid phone number' });
       return;
     }
 
     // Validate CNIC
     const cnicRegex = /^\d{13}$/;
     if (!cnicRegex.test(formData.cnic.replace(/\D/g, ''))) {
-      alert('Please enter a valid 13-digit CNIC number');
+      Swal.fire({ icon: 'warning', title: 'Invalid CNIC', text: 'Please enter a valid 13-digit CNIC number' });
       return;
     }
     
     if (paymentMethod === 'card' && (!formData.cardNumber || !formData.expiryDate || !formData.cvv || !formData.nameOnCard)) {
-      alert('Please fill in all card details')
+      Swal.fire({ icon: 'warning', title: 'Missing Card Details', text: 'Please fill in all card details' })
       return
     }
     

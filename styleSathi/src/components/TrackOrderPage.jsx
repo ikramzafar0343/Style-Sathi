@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Swal from 'sweetalert2';
 import {
   FaShoppingCart,
   FaUser,
@@ -401,7 +402,7 @@ const TrackOrderPage = ({
     if (onNavigateToShop) {
       onNavigateToShop();
     } else {
-      alert('Order again functionality would be implemented here');
+      Swal.fire({ icon: 'info', title: 'Order Again', text: 'Order again functionality would be implemented here' });
     }
   };
 
@@ -417,7 +418,7 @@ const TrackOrderPage = ({
 
   // Function to generate a random order ID for demo purposes
   const generateDemoOrder = () => {
-    alert('Use a real order ID returned from checkout to track your order.');
+    Swal.fire({ icon: 'info', title: 'Demo Order', text: 'Use a real order ID returned from checkout to track your order.' });
   };
 
   const TrackingInputSection = () => (

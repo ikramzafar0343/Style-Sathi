@@ -14,7 +14,7 @@ try {
   if (!baseOverride && isRender) {
     BASE_URL = 'https://stylesathi-backend.onrender.com/api';
   }
-} catch {}
+} catch { void 0; }
 
 export const http = axios.create({
   baseURL: BASE_URL,

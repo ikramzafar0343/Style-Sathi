@@ -18,6 +18,7 @@ import {
   FaUserTimes,
   FaInfoCircle
 } from 'react-icons/fa';
+import Swal from 'sweetalert2';
 
 // Mockup data (unused, kept for reference)
 const USER_MANAGEMENT_DATA = {
@@ -237,7 +238,7 @@ const AdminUserManagement = ({ onBack, currentUser, token }) => {
   const confirmDelete = async () => {
     if (!showDeleteConfirm) return;
     if (!deleteReason.trim()) {
-      alert('Deletion reason is required');
+      Swal.fire({ icon: 'warning', title: 'Reason Required', text: 'Deletion reason is required' });
       return;
     }
     const userId = showDeleteConfirm.userId;
@@ -258,7 +259,7 @@ const AdminUserManagement = ({ onBack, currentUser, token }) => {
       setDeleteReason('');
       setTimeout(() => setShowSuccessMessage(null), 3000);
     } catch (e) {
-      alert(`Delete failed: ${e.message}`);
+      Swal.fire({ icon: 'error', title: 'Delete Failed', text: e?.message || 'Failed to delete user' });
     }
     setDeletingId(null);
   };

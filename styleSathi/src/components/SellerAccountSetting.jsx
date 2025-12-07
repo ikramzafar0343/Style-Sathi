@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import {
   FaUser,
@@ -204,22 +205,22 @@ const SellerAccountSetting = ({
       onUpdateUser && onUpdateUser(updated);
       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'profile-updated', title: 'Profile Updated', message: 'Seller profile changes are saved', time: 'Just now' } }));
     } catch (e) {
-      alert(e.message || 'Failed to update seller profile');
+      Swal.fire({ icon: 'error', title: 'Update Failed', text: e?.message || 'Failed to update seller profile' });
     }
   };
 
   // Handle password update
   const handlePasswordUpdate = () => {
     if (formData.newPassword !== formData.confirmPassword) {
-      alert('New passwords do not match!');
+      Swal.fire({ icon: 'warning', title: 'Password Mismatch', text: 'New passwords do not match!' });
       return;
     }
     if (formData.newPassword.length < 6) {
-      alert('Password must be at least 6 characters long!');
+      Swal.fire({ icon: 'warning', title: 'Weak Password', text: 'Password must be at least 6 characters long!' });
       return;
     }
     console.log('Updating seller password...');
-    alert('Password updated successfully!');
+    Swal.fire({ icon: 'success', title: 'Password Updated', text: 'Password updated successfully!' });
     setFormData(prev => ({
       ...prev,
       currentPassword: '',
@@ -613,7 +614,7 @@ const SellerAccountSetting = ({
                                     await profileApi.requestPhoneVerification(token, formData.phone);
                                     setVerificationSent(true);
                                   } catch (e) {
-                                    alert(e.message || 'Failed to send code');
+                                    Swal.fire({ icon: 'error', title: 'Send Failed', text: e?.message || 'Failed to send code' });
                                   } finally {
                                     setVerifying(false);
                                   }
@@ -641,7 +642,7 @@ const SellerAccountSetting = ({
                                       setVerificationCode('');
                                       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'phone-verified', title: 'Phone Verified', message: 'Your phone number has been verified', time: 'Just now' } }));
                                     } catch (e) {
-                                      alert(e.message || 'Invalid code');
+                                      Swal.fire({ icon: 'error', title: 'Invalid Code', text: e?.message || 'Invalid code' });
                                     }
                                   }}
                                 >Confirm</button>
@@ -982,7 +983,7 @@ const SellerAccountSetting = ({
                             await profileApi.delete(token);
                             onLogout && onLogout();
                           } catch (e) {
-                            alert(e.message || 'Failed to delete account');
+                            Swal.fire({ icon: 'error', title: 'Delete Failed', text: e?.message || 'Failed to delete account' });
                           }
                         }}
                       >

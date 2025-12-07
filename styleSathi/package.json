@@ -14,14 +14,15 @@
     "start": "vite preview --host"
   },
   "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "bootstrap": "^5.3.3",
-    "react-icons": "^4.12.0",
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@mediapipe/hands": "^0.4.1646424915",
     "@mediapipe/pose": "^0.5.1675469157",
-    "axios": "^1.7.7"
+    "axios": "^1.7.7",
+    "bootstrap": "^5.3.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-icons": "^4.12.0",
+    "sweetalert2": "^11.26.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

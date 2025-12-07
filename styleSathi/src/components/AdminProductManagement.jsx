@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { FaArrowLeft, FaSearch, FaFilter, FaUpload, FaTrash, FaCubes, FaEye } from 'react-icons/fa';
+import Swal from 'sweetalert2';
 import NotificationBell from './NotificationBell';
 import { catalogApi, resolveAssetUrl } from '../services/api';
 
@@ -73,7 +74,7 @@ const AdminProductManagement = ({ onBack, token }) => {
       window.dispatchEvent(new Event('catalogInvalidated'));
       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'product-glb', title: 'Model Updated', message: `GLB uploaded for ${product.title}`, time: 'Just now' } }));
     } catch (e) {
-      alert(`GLB upload failed: ${e.message}`);
+      Swal.fire({ icon: 'error', title: 'Upload Failed', text: e?.message || 'GLB upload failed' });
     }
     setUploadingId(null);
   };
@@ -142,7 +143,7 @@ const AdminProductManagement = ({ onBack, token }) => {
       const convFile = new File([blob], `${product.sku || product.id}.glb`, { type: 'model/gltf-binary' });
       await handleUploadGlb(product, convFile);
     } catch (e) {
-      alert(`Conversion failed: ${e.message}`);
+      Swal.fire({ icon: 'error', title: 'Conversion Failed', text: e?.message || 'Conversion failed' });
     }
   };
 
@@ -153,13 +154,13 @@ const AdminProductManagement = ({ onBack, token }) => {
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'product-delete', title: 'Product Deleted', message: `${product.title} removed`, time: 'Just now' } }));
     } catch (e) {
-      alert(`Delete failed: ${e.message}`);
+      Swal.fire({ icon: 'error', title: 'Delete Failed', text: e?.message || 'Failed to delete product' });
     }
     setDeletingId(null);
   };
 
   const openArPreview = (glbUrl) => {
-    if (!glbUrl) { alert('No GLB available'); return; }
+    if (!glbUrl) { Swal.fire({ icon: 'info', title: 'Preview Unavailable', text: 'No GLB available' }); return; }
     setArPreviewUrl(resolveAssetUrl(glbUrl));
     setShowArPreview(true);
   };
