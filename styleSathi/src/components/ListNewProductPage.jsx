@@ -263,7 +263,7 @@ const ListNewProductPage = ({
       title: formData.name.trim(),
       description: formData.description.trim(),
       ...(Number.isFinite(Number(categoryId)) ? { category_id: Number(categoryId) } : {}),
-      category_name: formData.category,
+      category: formData.category,
       brand: formData.brand.trim(),
       price: priceNum,
       image_url: imageUrl,
@@ -278,7 +278,7 @@ const ListNewProductPage = ({
       Object.entries(payload).forEach(([k, v]) => {
         if (v === undefined || v === null) return;
         if (k === 'features' && Array.isArray(v)) {
-          fd.append(k, JSON.stringify(v));
+          fd.append(k, v.join(', '));
         } else {
           fd.append(k, String(v));
         }
