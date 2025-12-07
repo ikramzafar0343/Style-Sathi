@@ -274,23 +274,23 @@ const ListNewProductPage = ({
       features: Array.isArray(formData.features) ? formData.features.filter(Boolean) : [],
     };
     try {
-      if (fileObj instanceof File || glbFile instanceof File) {
-        const fd = new FormData();
-        Object.entries(payload).forEach(([k, v]) => {
-          if (v === undefined || v === null) return;
-          if (k === 'features' && Array.isArray(v)) {
-            fd.append(k, JSON.stringify(v));
-          } else {
-            fd.append(k, String(v));
-          }
-        });
+      const fd = new FormData();
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        if (k === 'features' && Array.isArray(v)) {
+          fd.append(k, JSON.stringify(v));
+        } else {
+          fd.append(k, String(v));
+        }
+      });
+      if (fileObj instanceof File) {
         fd.delete('image_url');
-        if (fileObj instanceof File) fd.append('image', fileObj, fileObj.name);
-        if (glbFile instanceof File) fd.append('model_glb', glbFile, glbFile.name);
-        await catalogApi.createProductMultipart(token, fd);
-      } else {
-        await catalogApi.createProduct(token, payload);
+        fd.append('image', fileObj, fileObj.name);
       }
+      if (glbFile instanceof File) {
+        fd.append('model_glb', glbFile, glbFile.name);
+      }
+      await catalogApi.createProductMultipart(token, fd);
       window.dispatchEvent(new Event('catalogInvalidated'));
       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'product-listed', title: 'Product Listed', message: `${payload.title} listed successfully`, time: 'Just now' } }))
       setIsLoading(false);
