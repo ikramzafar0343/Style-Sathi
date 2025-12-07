@@ -7,7 +7,14 @@ const host = (typeof import.meta !== 'undefined' && import.meta.env && import.me
 const normalizedHost = (!host || host === '0.0.0.0' || host === '::' || host === '127.0.0.1') ? 'localhost' : host;
 const port = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) || '8000';
 const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
-const BASE_URL = baseOverride || `${protocol}://${normalizedHost}:${port}/api`;
+let BASE_URL = baseOverride || `${protocol}://${normalizedHost}:${port}/api`;
+// Render fallback: if running on Render and no explicit override, point to backend service
+try {
+  const isRender = typeof window !== 'undefined' && /onrender\.com$/i.test(window.location.hostname || '');
+  if (!baseOverride && isRender) {
+    BASE_URL = 'https://stylesathi-backend.onrender.com/api';
+  }
+} catch {}
 
 export const http = axios.create({
   baseURL: BASE_URL,
