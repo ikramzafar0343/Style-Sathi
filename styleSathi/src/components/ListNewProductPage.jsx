@@ -261,7 +261,8 @@ const ListNewProductPage = ({
     const payload = {
       title: formData.name.trim(),
       description: formData.description.trim(),
-      category_id: categoryId,
+      ...(Number.isFinite(Number(categoryId)) ? { category_id: Number(categoryId) } : {}),
+      category_name: formData.category,
       brand: formData.brand.trim(),
       price: priceNum,
       image_url: imageUrl,
