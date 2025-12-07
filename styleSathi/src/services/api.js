@@ -43,8 +43,7 @@ export const catalogApi = {
   createProductMultipart: async (token, formData) => {
     const resp = await http.post(`/products/create`, formData, {
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'Content-Type': 'multipart/form-data'
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     });
     return resp.data;
@@ -52,8 +51,7 @@ export const catalogApi = {
   updateProductMultipart: async (token, id, formData) => {
     const resp = await http.patch(`/products/${id}/manage`, formData, {
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'Content-Type': 'multipart/form-data'
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     });
     return resp.data;
