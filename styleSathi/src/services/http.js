@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const baseOverride = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || '';
 const host = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_HOST)
@@ -27,7 +28,19 @@ http.interceptors.request.use((config) => {
   const token = (typeof window !== 'undefined' && localStorage.getItem('authTokens'))
     ? JSON.parse(localStorage.getItem('authTokens') || '{}').access
     : null;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const method = String(config.method || 'get').toLowerCase();
+  const url = String(config.url || '');
+  const isPublicGet = (
+    method === 'get' && (
+      /^\/products\/?(\?.*)?$/.test(url) ||
+      /^\/products\/categories$/.test(url) ||
+      /^\/products\/\d+$/.test(url)
+    )
+  );
+  const isAuthEndpoint = /^\/auth\//.test(url);
+  if (token && !isPublicGet && !isAuthEndpoint) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
@@ -35,7 +48,14 @@ http.interceptors.response.use(
   (resp) => resp,
   async (error) => {
     const resp = error.response;
+    const status = resp?.status;
     const message = resp?.data?.detail || resp?.data?.error || (Array.isArray(resp?.data?.errors) ? resp.data.errors.join(', ') : resp?.statusText || error.message);
+    if (typeof window !== 'undefined' && (status === 401 || status === 403)) {
+      const msg = String(message || '').toLowerCase();
+      if (msg.includes('invalid token') || msg.includes('authentication credentials were not provided')) {
+        try { await Swal.fire({ icon: 'warning', title: 'Authentication Required', text: message || 'Please log in to continue' }); } catch { void 0; }
+      }
+    }
     return Promise.reject(new Error(message || 'Request failed'));
   }
 );
