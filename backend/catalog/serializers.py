@@ -44,6 +44,13 @@ class ProductSerializer(serializers.ModelSerializer):
                 category_id = int(raw_cat) if raw_cat is not None else None
             except Exception:
                 category_id = None
+        if not category_id and not category_name:
+            raw_cat = self.initial_data.get('category')
+            try:
+                int(raw_cat)
+            except Exception:
+                if isinstance(raw_cat, str) and raw_cat.strip():
+                    category_name = raw_cat.strip()
         # Pop files if present in validated data
         image = validated_data.pop('image', None)
         model_glb = validated_data.pop('model_glb', None)
@@ -103,6 +110,13 @@ class ProductSerializer(serializers.ModelSerializer):
         category_id = validated_data.pop('category_id', None)
         image = validated_data.pop('image', None)
         model_glb = validated_data.pop('model_glb', None)
+        if not category_id and not category_name:
+            raw_cat = self.initial_data.get('category')
+            try:
+                int(raw_cat)
+            except Exception:
+                if isinstance(raw_cat, str) and raw_cat.strip():
+                    category_name = raw_cat.strip()
         if category_id:
             try:
                 cid = int(category_id)

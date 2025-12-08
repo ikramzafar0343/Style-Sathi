@@ -117,7 +117,17 @@ class ProductCreateView(generics.CreateAPIView):
                 return Response(product_public(out), status=201)
             except Exception:
                 return Response({'detail': 'Failed to create product'}, status=400)
-        serializer = self.get_serializer(data=request.data)
+        allowed = {
+            'title', 'price', 'original_price', 'category_name', 'category_id', 'brand', 'description',
+            'image_url', 'image', 'model_glb', 'model_glb_url', 'sketchfab_embed_url', 'in_stock',
+            'rating', 'features', 'sku', 'stock'
+        }
+        clean_data = {k: v for k, v in request.data.items() if k in allowed}
+        if hasattr(request, 'FILES'):
+            for fk in ['image', 'model_glb']:
+                if fk in request.FILES:
+                    clean_data[fk] = request.FILES[fk]
+        serializer = self.get_serializer(data=clean_data)
         if not serializer.is_valid():
             return Response({'errors': serializer.errors}, status=400)
         try:

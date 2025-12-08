@@ -21,7 +21,7 @@ class Product(models.Model):
     rating = models.FloatField(default=0)
     features = models.JSONField(default=list, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='products', on_delete=models.CASCADE, null=True, blank=True)
-    sku = models.CharField(max_length=64, blank=True)
+    sku = models.CharField(max_length=64, blank=True, unique=True)
     stock = models.PositiveIntegerField(default=0)
 
     class Meta:
