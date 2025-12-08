@@ -415,13 +415,18 @@ const ManageInventory = ({
 
   const confirmDelete = async () => {
     if (showDeleteConfirm) {
-      const reason = prompt('Enter reason for deletion');
-      if (!reason || !reason.trim()) {
-        Swal.fire({ icon: 'warning', title: 'Reason Required', text: 'Deletion reason is required' });
-        return;
-      }
+      const { value: reason } = await Swal.fire({
+        title: 'Enter reason for deletion',
+        input: 'text',
+        inputPlaceholder: 'Reason',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        inputValidator: (v) => (!v || !String(v).trim()) ? 'Reason is required' : undefined,
+      });
+      if (!reason) return;
       try {
-        await catalogApi.deleteProduct(token, showDeleteConfirm, reason.trim());
+        await catalogApi.deleteProduct(token, showDeleteConfirm, String(reason).trim());
         setProducts(products.filter(p => p.id !== showDeleteConfirm));
         window.dispatchEvent(new Event('catalogInvalidated'));
       } catch (e) {

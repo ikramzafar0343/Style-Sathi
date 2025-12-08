@@ -656,7 +656,15 @@ const CustomerAccountSetting = ({ onBack, onLogoClick, onProfileClick, onLogout,
                       <button 
                         className="btn btn-link text-danger p-0 d-flex align-items-center gap-2"
                         onClick={async () => {
-                          if (!window.confirm('Delete your account? This cannot be undone.')) return;
+                          const res = await Swal.fire({
+                            icon: 'warning',
+                            title: 'Confirm Deletion',
+                            text: 'Delete your account? This cannot be undone.',
+                            showCancelButton: true,
+                            confirmButtonText: 'Delete',
+                            cancelButtonText: 'Cancel'
+                          });
+                          if (!res.isConfirmed) return;
                           try {
                             await profileApi.delete(token);
                             onLogout && onLogout();

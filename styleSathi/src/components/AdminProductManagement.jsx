@@ -249,9 +249,18 @@ const AdminProductManagement = ({ onBack, token }) => {
                           <button className="btn btn-sm btn-outline-success" onClick={() => openArPreview(p.model_glb_url)}>
                             <FaEye /> Review AR
                           </button>
-                          <button className="btn btn-sm btn-outline-danger" disabled={deletingId === p.id} onClick={() => {
-                            const reason = prompt('Enter reason for deletion');
-                            if (reason && reason.trim()) handleDelete(p, reason.trim());
+                          <button className="btn btn-sm btn-outline-danger" disabled={deletingId === p.id} onClick={async () => {
+                            const { value: reason } = await Swal.fire({
+                              title: 'Enter reason for deletion',
+                              input: 'text',
+                              inputPlaceholder: 'Reason',
+                              showCancelButton: true,
+                              confirmButtonText: 'Delete',
+                              cancelButtonText: 'Cancel',
+                              inputValidator: (v) => (!v || !String(v).trim()) ? 'Reason is required' : undefined,
+                            });
+                            if (!reason) return;
+                            handleDelete(p, String(reason).trim());
                           }}>
                             <FaTrash /> Delete
                           </button>
