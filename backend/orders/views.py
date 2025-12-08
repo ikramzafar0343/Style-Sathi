@@ -19,7 +19,7 @@ class OrderCreateView(APIView):
         if not items:
             return Response({'error': 'No items'}, status=status.HTTP_400_BAD_REQUEST)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 ensure_indexes(mongo)
                 doc = build_order_doc(mongo, getattr(request.user, 'email', None), items, shipping, payment_method)
@@ -69,7 +69,7 @@ class OrderDetailView(APIView):
 
     def get(self, request, pk):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 doc = mongo['orders'].find_one({'order_id': str(pk), 'user_email': getattr(request.user, 'email', None)})
                 if not doc:
@@ -91,7 +91,7 @@ class SellerOrderListView(APIView):
         if role not in ['seller', 'admin']:
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 email = getattr(request.user, 'email', None)
                 cursor = mongo['orders'].find({'items.owner_email': email}).sort('created_at', -1)
@@ -120,7 +120,7 @@ class SellerOrderDetailView(APIView):
         if role not in ['seller', 'admin']:
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 email = getattr(request.user, 'email', None)
                 doc = mongo['orders'].find_one({'order_id': str(pk), 'items.owner_email': email})
@@ -152,7 +152,7 @@ class OrderStatusUpdateView(APIView):
         if role not in ['seller', 'admin']:
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 email = getattr(request.user, 'email', None)
                 doc = mongo['orders'].find_one({'order_id': str(pk)})
@@ -195,7 +195,7 @@ class AdminOrderListView(APIView):
         if role != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 docs = list(mongo['orders'].find({}).sort('created_at', -1).limit(500))
                 return Response([public_order(d) for d in docs])

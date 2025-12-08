@@ -18,7 +18,7 @@ class MongoUser:
 
 class MongoJWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
-        if not getattr(settings, 'MONGO_DB', None):
+        if getattr(settings, 'MONGO_DB', None) is None:
             return None
         auth = get_authorization_header(request).split()
         if not auth or auth[0].lower() != b'bearer' or len(auth) != 2:

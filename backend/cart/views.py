@@ -17,7 +17,7 @@ class CartView(APIView):
 
     def get(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 doc = get_cart(mongo, getattr(request.user, 'email', None))
                 return Response(public_cart(doc))
@@ -31,7 +31,7 @@ class CartItemsView(APIView):
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 product_id = request.data.get('product_id')
                 quantity = int(request.data.get('quantity', 1))
@@ -71,7 +71,7 @@ class CartItemDetailView(APIView):
 
     def patch(self, request, pk):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 quantity = int(request.data.get('quantity', 1))
                 item_id = update_item(mongo, getattr(request.user, 'email', None), str(pk), quantity)
@@ -96,7 +96,7 @@ class CartItemDetailView(APIView):
 
     def delete(self, request, pk):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 remove_item(mongo, getattr(request.user, 'email', None), str(pk))
                 return Response(status=status.HTTP_204_NO_CONTENT)

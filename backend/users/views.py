@@ -18,7 +18,7 @@ MODERATION_STATUSES = {}
 
 def build_tokens(user):
     mongo = getattr(settings, 'MONGO_DB', None)
-    if mongo:
+    if mongo is not None:
         role = getattr(user, 'role', None) or 'customer'
         email = getattr(user, 'email', None)
         return create_tokens(email, role)
@@ -30,7 +30,7 @@ class SignupView(APIView):
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             data = request.data or {}
             email = data.get('email')
             password = data.get('password')
@@ -72,7 +72,7 @@ class SellerSignupView(APIView):
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             data = request.data or {}
             data = {**data, 'role': 'seller'}
             email = data.get('email')
@@ -113,7 +113,7 @@ class LoginView(APIView):
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             email = request.data.get('email')
             password = request.data.get('password')
             expected_role = request.data.get('expected_role')
@@ -146,7 +146,7 @@ class ProfileView(APIView):
 
     def get(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             doc = get_user_doc(mongo, getattr(request.user, 'email', None))
             if not doc:
                 return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -161,7 +161,7 @@ class ProfileView(APIView):
 
     def patch(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             email = getattr(request.user, 'email', None)
             doc = get_user_doc(mongo, email)
             if not doc:
@@ -193,7 +193,7 @@ class ProfileView(APIView):
 
     def delete(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             email = getattr(request.user, 'email', None)
             soft_delete_user(mongo, email)
             return Response({'message': 'Account deleted'}, status=status.HTTP_200_OK)
@@ -282,7 +282,7 @@ class AdminUsersListView(APIView):
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 docs = list(mongo['users'].find({'is_active': True}).sort('date_joined', -1).limit(1000))
                 data = []
@@ -353,7 +353,7 @@ class AdminUsersListView(APIView):
 
         # Audit log (Mongo optional)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 mongo['audit'].insert_one({
                     'type': 'user_delete',
@@ -375,7 +375,7 @@ class AdminReportsView(APIView):
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 docs = list(mongo['moderation_reports'].find({}))
                 data = []
@@ -419,7 +419,7 @@ class AdminReportsView(APIView):
             return Response({'code': 'invalid_report_update', 'detail': 'Invalid report update'}, status=status.HTTP_400_BAD_REQUEST)
         new_status = 'resolved' if action.startswith('resol') else 'rejected'
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 mongo['moderation_reports'].update_one(
                     {'report_id': rid},
@@ -456,7 +456,7 @@ class AdminReportsView(APIView):
             return Response({'code': 'invalid', 'detail': 'severity must be low|medium|high'}, status=status.HTTP_400_BAD_REQUEST)
         rid = f"REP-{timezone.now().strftime('%Y%m%d%H%M%S')}"
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 mongo['moderation_reports'].insert_one({
                     'report_id': rid,

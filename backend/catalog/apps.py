@@ -8,5 +8,5 @@ class CatalogConfig(AppConfig):
 
     def ready(self):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             ensure_indexes(mongo)

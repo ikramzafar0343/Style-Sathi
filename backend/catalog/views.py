@@ -25,7 +25,7 @@ class ProductListView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             params = request.query_params
             cat = params.get('category')
             search = params.get('search')
@@ -68,7 +68,7 @@ class CategoryListView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 docs = list(mongo['categories'].find({}, {'name': 1}).sort('name', 1).limit(200))
                 data = [{'id': str(d.get('_id')), 'name': d.get('name')} for d in docs if d.get('name')]
@@ -88,7 +88,7 @@ class MyProductListView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             email = getattr(request.user, 'email', None)
             try:
                 docs = list(mongo['products'].find({'owner_email': email}).sort('_id', -1).limit(500))
@@ -108,7 +108,7 @@ class ProductCreateView(generics.CreateAPIView):
         if getattr(user, 'role', 'customer') not in ['seller', 'admin']:
             return Response({'detail': 'Only sellers or admins can create products'}, status=403)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), getattr(user, 'email', None))
                 mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
@@ -125,7 +125,7 @@ class ProductCreateView(generics.CreateAPIView):
         except Exception:
             return Response({'detail': 'Failed to create product'}, status=400)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 doc = product_doc_from_request({'title': product.title,
                                                 'price': product.price,
@@ -162,7 +162,7 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 product = self.get_object()
                 doc = product_doc_from_request(self.request.data, getattr(self.request, 'FILES', None), getattr(self.request.user, 'email', None))
@@ -178,7 +178,7 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         sku = instance.sku
         super().perform_destroy(instance)
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo and sku:
+        if mongo is not None and sku:
             try:
                 mongo['products'].delete_one({'sku': sku})
             except Exception:
@@ -195,7 +195,7 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
             pass
         sku = getattr(instance, 'sku', '')
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 mongo['audit'].insert_one({
                     'type': 'product_delete',

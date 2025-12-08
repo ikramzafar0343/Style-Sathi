@@ -123,7 +123,7 @@ class Command(BaseCommand):
                 }
             )
         mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo:
+        if mongo is not None:
             try:
                 mongo['categories'].create_index('name', unique=True)
                 mongo['products'].create_index('sku', unique=True)
