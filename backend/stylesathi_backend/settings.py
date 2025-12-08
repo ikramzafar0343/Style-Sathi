@@ -170,12 +170,13 @@ SIMPLE_JWT = {
 }
 
 _default_frontend = 'https://stylesathi-frontend.onrender.com'
-default_cors = 'http://localhost:5173,http://127.0.0.1:5173,' + _default_frontend
+_railway_frontend = 'https://stylesathi-frontend-production.up.railway.app'
+default_cors = 'http://localhost:5173,http://127.0.0.1:5173,' + _default_frontend + ',' + _railway_frontend
 CORS_ALLOWED_ORIGINS = [o for o in os.environ.get('CORS_ALLOWED_ORIGINS', default_cors).split(',') if o]
 CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', str(DEBUG)).lower() in ('1', 'true', 'yes')
 CORS_URLS_REGEX = r'^.*$'
 
-_csrf_default = _default_frontend
+_csrf_default = _default_frontend + ',' + _railway_frontend
 CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('CSRF_TRUSTED_ORIGINS', _csrf_default).split(',') if o]
 
 STATIC_URL = '/static/'
