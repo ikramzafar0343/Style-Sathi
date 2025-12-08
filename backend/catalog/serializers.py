@@ -32,8 +32,6 @@ class ProductSerializer(serializers.ModelSerializer):
                     attrs['features'] = [str(parsed)]
             except Exception:
                 attrs['features'] = [s.strip() for s in features_raw.split(',') if s.strip()]
-        elif isinstance(features_raw, list):
-            attrs['features'] = features_raw
         return super().validate(attrs)
 
     def create(self, validated_data):
