@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-const baseOverride = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || '';
+const baseOverrideRaw = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || '';
 const host = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_HOST)
   || (typeof window !== 'undefined' && window.location && window.location.hostname)
   || 'localhost';
@@ -9,6 +9,10 @@ const normalizedHost = (!host || host === '0.0.0.0' || host === '::' || host ===
 const port = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) || '8000';
 const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
 const IS_DEV = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
+let baseOverride = baseOverrideRaw;
+if (!IS_DEV && typeof baseOverrideRaw === 'string' && baseOverrideRaw.includes('onrender.com')) {
+  baseOverride = '';
+}
 let BASE_URL = baseOverride || (IS_DEV ? `${protocol}://${normalizedHost}:${port}/api` : 'https://stylesathi-backend-production.up.railway.app/api');
 
 export const http = axios.create({

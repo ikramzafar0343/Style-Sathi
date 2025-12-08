@@ -264,7 +264,7 @@ const ListNewProductPage = ({
       title: formData.name.trim(),
       description: formData.description.trim(),
       ...(Number.isFinite(Number(categoryId)) ? { category_id: Number(categoryId) } : {}),
-      ...(Number.isFinite(Number(categoryId)) ? {} : { category_name: formData.category }),
+      category_name: formData.category,
       brand: formData.brand.trim(),
       price: priceNum,
       image_url: imageUrl,
