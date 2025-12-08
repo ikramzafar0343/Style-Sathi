@@ -30,6 +30,34 @@ class OrderCreateView(APIView):
                     CartItem.objects.filter(cart=cart).delete()
                 except Exception:
                     pass
+                try:
+                    order = Order.objects.create(
+                        user=request.user,
+                        status='confirmed',
+                        estimated_delivery=date.today() + timedelta(days=5),
+                        full_name=shipping.get('fullName', ''),
+                        email=shipping.get('email', ''),
+                        phone_number=shipping.get('phoneNumber', ''),
+                        street_address=shipping.get('streetAddress', ''),
+                        city=shipping.get('city', ''),
+                        zip_code=shipping.get('zipCode', ''),
+                        country=shipping.get('country', ''),
+                        payment_method=payment_method,
+                    )
+                    total = 0
+                    for it in items:
+                        try:
+                            product = Product.objects.get(id=it['product_id'])
+                        except Product.DoesNotExist:
+                            continue
+                        qty = int(it.get('quantity', 1))
+                        price = product.price
+                        OrderItem.objects.create(order=order, product=product, quantity=qty, price=price)
+                        total += price * qty
+                    order.total = total
+                    order.save()
+                except Exception:
+                    pass
                 return Response(public_order(doc), status=status.HTTP_201_CREATED)
             except ValueError as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -168,6 +196,10 @@ class OrderStatusUpdateView(APIView):
                     return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
                 mongo['orders'].update_one({'order_id': str(pk)}, {'$set': {'status': new_status}})
                 doc['status'] = new_status
+                try:
+                    Order.objects.filter(id=pk).update(status=new_status)
+                except Exception:
+                    pass
                 return Response(public_order(doc))
             except Exception:
                 return Response({'error': 'Failed to update status'}, status=status.HTTP_400_BAD_REQUEST)

@@ -96,7 +96,7 @@ const ARProductViewer = ({
             brand: p.brand,
             category: typeof p.category === 'string' ? p.category : (p.category?.name || ''),
             inStock: p.in_stock ?? (p.stock > 0),
-            rating: p.rating || 4.5
+            rating: Number(p.rating || 0)
           }));
           setInternalProducts(mapped);
         } catch {

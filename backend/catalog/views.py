@@ -113,6 +113,45 @@ class ProductCreateView(generics.CreateAPIView):
                 doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), getattr(user, 'email', None))
                 mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
                 mongo['categories'].update_one({'name': doc['category']}, {'$set': {'name': doc['category']}}, upsert=True)
+                try:
+                    cat, _ = Category.objects.get_or_create(name=doc.get('category') or '')
+                    existing = Product.objects.filter(sku=doc.get('sku') or '').first()
+                    if existing:
+                        existing.title = doc.get('title') or existing.title
+                        existing.price = doc.get('price') or existing.price
+                        existing.original_price = doc.get('original_price') or existing.original_price
+                        existing.category = cat
+                        existing.brand = doc.get('brand') or ''
+                        existing.description = doc.get('description') or ''
+                        existing.image_url = doc.get('image_url') or ''
+                        existing.model_glb_url = doc.get('model_glb_url') or ''
+                        existing.sketchfab_embed_url = doc.get('sketchfab_embed_url') or ''
+                        existing.in_stock = bool(doc.get('in_stock'))
+                        existing.rating = float(doc.get('rating') or 0)
+                        existing.features = list(doc.get('features') or [])
+                        existing.owner = user
+                        existing.stock = int(doc.get('stock') or 0)
+                        existing.save()
+                    else:
+                        Product.objects.create(
+                            title=doc.get('title') or '',
+                            price=doc.get('price') or 0,
+                            original_price=doc.get('original_price') or 0,
+                            category=cat,
+                            brand=doc.get('brand') or '',
+                            description=doc.get('description') or '',
+                            image_url=doc.get('image_url') or '',
+                            model_glb_url=doc.get('model_glb_url') or '',
+                            sketchfab_embed_url=doc.get('sketchfab_embed_url') or '',
+                            in_stock=bool(doc.get('in_stock')),
+                            rating=float(doc.get('rating') or 0),
+                            features=list(doc.get('features') or []),
+                            owner=user,
+                            sku=doc.get('sku') or '',
+                            stock=int(doc.get('stock') or 0)
+                        )
+                except Exception:
+                    pass
                 out = mongo['products'].find_one({'sku': doc['sku']})
                 return Response(product_public(out), status=201)
             except Exception:
@@ -198,25 +237,77 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         reason = (request.data or {}).get('reason') if hasattr(request, 'data') else None
         if not reason:
             return Response({'detail': 'Reason is required for deletion'}, status=400)
-        instance = self.get_object()
         try:
-            CartItem.objects.filter(product=instance).delete()
+            instance = self.get_object()
         except Exception:
-            pass
-        sku = getattr(instance, 'sku', '')
-        mongo = getattr(settings, 'MONGO_DB', None)
-        if mongo is not None:
+            instance = None
+        if instance is not None:
             try:
-                mongo['audit'].insert_one({
-                    'type': 'product_delete',
-                    'sku': sku,
-                    'product_id': instance.pk,
-                    'reason': reason,
-                    'by': getattr(request.user, 'email', None),
-                    'time': timezone.now().isoformat()
-                })
+                CartItem.objects.filter(product=instance).delete()
             except Exception:
                 pass
-        # Perform actual deletion (hard delete) and remove from Mongo by SKU
-        self.perform_destroy(instance)
-        return Response({'detail': 'Product deleted', 'reason': reason, 'sku': sku}, status=200)
+            sku = getattr(instance, 'sku', '')
+            mongo = getattr(settings, 'MONGO_DB', None)
+            if mongo is not None:
+                try:
+                    mongo['audit'].insert_one({
+                        'type': 'product_delete',
+                        'sku': sku,
+                        'product_id': instance.pk,
+                        'reason': reason,
+                        'by': getattr(request.user, 'email', None),
+                        'time': timezone.now().isoformat()
+                    })
+                except Exception:
+                    pass
+            self.perform_destroy(instance)
+            if mongo is not None and sku:
+                try:
+                    mongo['products'].delete_one({'sku': sku})
+                except Exception:
+                    pass
+            return Response({'detail': 'Product deleted', 'reason': reason, 'sku': sku}, status=200)
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo is None:
+            return Response({'detail': 'Product not found'}, status=404)
+        try:
+            from bson import ObjectId
+        except Exception:
+            ObjectId = None
+        pk = str(self.kwargs.get('pk'))
+        query = {}
+        doc = None
+        if ObjectId is not None:
+            try:
+                oid = ObjectId(pk)
+                query = {'_id': oid}
+                doc = mongo['products'].find_one(query)
+            except Exception:
+                doc = None
+        if doc is None:
+            query = {'sku': pk}
+            doc = mongo['products'].find_one(query)
+        if not doc:
+            return Response({'detail': 'Product not found'}, status=404)
+        email = getattr(request.user, 'email', None)
+        role = getattr(request.user, 'role', 'customer')
+        if role != 'admin' and doc.get('owner_email') != email:
+            return Response({'detail': 'Forbidden'}, status=403)
+        try:
+            mongo['audit'].insert_one({
+                'type': 'product_delete',
+                'sku': doc.get('sku') or '',
+                'product_id': None,
+                'reason': reason,
+                'by': email,
+                'time': timezone.now().isoformat()
+            })
+        except Exception:
+            pass
+        mongo['products'].delete_one(query)
+        try:
+            Product.objects.filter(sku=doc.get('sku') or '').delete()
+            CartItem.objects.filter(product__sku=doc.get('sku') or '').delete()
+        except Exception:
+            pass
+        return Response({'detail': 'Product deleted', 'reason': reason, 'sku': doc.get('sku') or ''}, status=200)
