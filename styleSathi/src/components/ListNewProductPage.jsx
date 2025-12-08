@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import TryOnBase from './tryon/TryOnBase';
-import { catalogApi } from '../services/api';
+import { catalogApi, apiOrigin } from '../services/api';
 import {
   FaArrowLeft,
   FaUpload,
@@ -212,6 +212,7 @@ const ListNewProductPage = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    try { console.log('ListNewProduct: submit start'); } catch { void 0; }
 
     // Validate required fields
     const requiredFields = ['name', 'category', 'price', 'stock'];
@@ -273,6 +274,7 @@ const ListNewProductPage = ({
       ...(formData.originalPrice ? { original_price: Number(formData.originalPrice) } : {}),
       features: Array.isArray(formData.features) ? formData.features.filter(Boolean) : [],
     };
+    try { console.log('ListNewProduct: payload', payload); } catch { void 0; }
     try {
       const fd = new FormData();
       Object.entries(payload).forEach(([k, v]) => {
@@ -290,7 +292,16 @@ const ListNewProductPage = ({
       if (glbFile instanceof File) {
         fd.append('model_glb', glbFile, glbFile.name);
       }
-      await catalogApi.createProductMultipart(token, fd);
+      try {
+        const entries = [];
+        for (const [k, v] of fd.entries()) {
+          entries.push([k, v instanceof File ? { name: v.name, size: v.size, type: v.type } : String(v)]);
+        }
+        console.log('ListNewProduct: formData entries', entries);
+      } catch { void 0; }
+      try { console.log('ListNewProduct: POST', `${apiOrigin}/products/create`); } catch { void 0; }
+      const result = await catalogApi.createProductMultipart(token, fd);
+      try { console.log('ListNewProduct: result', result); } catch { void 0; }
       window.dispatchEvent(new Event('catalogInvalidated'));
       window.dispatchEvent(new CustomEvent('notification:push', { detail: { type: 'product-listed', title: 'Product Listed', message: `${payload.title} listed successfully`, time: 'Just now' } }))
       setIsLoading(false);
@@ -299,6 +310,7 @@ const ListNewProductPage = ({
       else onBack();
     } catch (e) {
       setIsLoading(false);
+      try { console.error('ListNewProduct: error', e); } catch { void 0; }
       Swal.fire({ icon: 'error', title: 'Listing Failed', text: e.message || 'Failed to list product' });
     }
   };
