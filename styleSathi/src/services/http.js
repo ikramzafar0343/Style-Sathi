@@ -13,7 +13,7 @@ let baseOverride = baseOverrideRaw;
 if (!IS_DEV && typeof baseOverrideRaw === 'string' && baseOverrideRaw.includes('onrender.com')) {
   baseOverride = '';
 }
-let BASE_URL = baseOverride || (IS_DEV ? `${protocol}://${normalizedHost}:${port}/api` : 'https://stylesathi-backend-production.up.railway.app/api');
+let BASE_URL = baseOverride || (IS_DEV ? `${protocol}://${normalizedHost}:${port}/api` : 'https://stylesathi-backend.onrender.com/api');
 
 export const http = axios.create({
   baseURL: BASE_URL,
