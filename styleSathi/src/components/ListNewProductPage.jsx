@@ -280,7 +280,11 @@ const ListNewProductPage = ({
       Object.entries(payload).forEach(([k, v]) => {
         if (v === undefined || v === null) return;
         if (k === 'features' && Array.isArray(v)) {
-          fd.append(k, v.join(', '));
+          try {
+            fd.append(k, JSON.stringify(v));
+          } catch {
+            fd.append(k, v.join(', '));
+          }
         } else {
           fd.append(k, String(v));
         }
@@ -299,7 +303,7 @@ const ListNewProductPage = ({
         }
         console.log('ListNewProduct: formData entries', entries);
       } catch { void 0; }
-      try { console.log('ListNewProduct: POST', `${apiOrigin}/products/create`); } catch { void 0; }
+      try { console.log('ListNewProduct: POST', `${apiOrigin}/api/products/create`); } catch { void 0; }
       const result = await catalogApi.createProductMultipart(token, fd);
       try { console.log('ListNewProduct: result', result); } catch { void 0; }
       window.dispatchEvent(new Event('catalogInvalidated'));
