@@ -125,7 +125,7 @@ else:
     }
 
 # Optional direct MongoDB client for hybrid usage
-if DB_ENGINE == 'mongodb' and (USE_DJONGO is False):
+if DB_ENGINE == 'mongodb' and (USE_DJONGO is not True):
     MONGO_HOST = os.environ.get('DB_HOST', '127.0.0.1')
     MONGO_PORT = int(os.environ.get('DB_PORT', '27017'))
     MONGO_NAME = os.environ.get('DB_NAME', 'stylesathi')
