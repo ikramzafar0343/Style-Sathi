@@ -20,8 +20,8 @@ def product_doc_from_request(data, files, owner_email):
     sku = (data.get('sku') or '').strip()
     if not sku:
         sku = 'SKU-' + secrets.token_hex(4).upper()
-    image_url = data.get('image_url') or ''
-    model_glb_url = data.get('model_glb_url') or ''
+    image_url = data.get('image_url') if data.get('image_url') not in (None, '') else None
+    model_glb_url = data.get('model_glb_url') if data.get('model_glb_url') not in (None, '') else None
     img = files.get('image') if files else None
     glb = files.get('model_glb') if files else None
     if img:
@@ -43,17 +43,17 @@ def product_doc_from_request(data, files, owner_email):
         stock = 0
     feats = data.get('features') or []
     if isinstance(feats, str):
-               feats = [s.strip() for s in feats.split(',') if s.strip()]          
+        feats = [s.strip() for s in feats.split(',') if s.strip()]
     return {
         'title': (data.get('title') or data.get('name') or '').strip(),
         'price': price,
         'original_price': original_price,
         'category': cat,
-        'brand': (data.get('brand') or '').strip(),
-        'description': (data.get('description') or '').strip(),
+        'brand': ((data.get('brand') or '').strip() or None),
+        'description': ((data.get('description') or '').strip() or None),
         'image_url': image_url,
         'model_glb_url': model_glb_url,
-        'sketchfab_embed_url': data.get('sketchfab_embed_url') or '',
+        'sketchfab_embed_url': ((data.get('sketchfab_embed_url') or '').strip() or None),
         'in_stock': bool(data.get('in_stock', stock > 0)),
         'rating': float(data.get('rating') or 0),
         'features': list(feats) if isinstance(feats, list) else [],

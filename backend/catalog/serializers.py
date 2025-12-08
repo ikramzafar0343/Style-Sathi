@@ -32,6 +32,11 @@ class ProductSerializer(serializers.ModelSerializer):
                     attrs['features'] = [str(parsed)]
             except Exception:
                 attrs['features'] = [s.strip() for s in features_raw.split(',') if s.strip()]
+        elif isinstance(features_raw, list):
+            attrs['features'] = features_raw
+        for k in ['brand', 'description', 'image_url', 'model_glb_url', 'sketchfab_embed_url']:
+            if attrs.get(k) is None:
+                attrs[k] = ''
         return super().validate(attrs)
 
     def create(self, validated_data):
