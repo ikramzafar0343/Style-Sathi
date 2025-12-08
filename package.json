@@ -1,4 +1,11 @@
 {
+  "name": "style-sathi-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "cd styleSathi && npm ci && npm run build",
+    "start": "npx serve -s styleSathi/dist -l $PORT"
+  },
   "dependencies": {
     "bootstrap": "^5.3.8",
     "react-icons": "^5.5.0"
