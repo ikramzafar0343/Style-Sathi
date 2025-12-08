@@ -43,7 +43,12 @@ def product_doc_from_request(data, files, owner_email):
         stock = 0
     feats = data.get('features') or []
     if isinstance(feats, str):
-        feats = [s.strip() for s in feats.split(',') if s.strip()]
+        try:
+            import json
+            loaded = json.loads(feats)
+            feats = loaded if isinstance(loaded, list) else [str(loaded)]
+        except Exception:
+            feats = [s.strip() for s in feats.split(',') if s.strip()]
     return {
         'title': (data.get('title') or data.get('name') or '').strip(),
         'price': price,
