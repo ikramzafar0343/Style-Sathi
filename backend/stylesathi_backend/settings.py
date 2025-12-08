@@ -56,7 +56,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'stylesathi_backend.wsgi.application'
 
 DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite').lower()
-USE_DJONGO = os.environ.get('USE_DJONGO', 'False').lower() in ('1', 'true', 'yes')
+USE_DJONGO = os.environ.get('USE_DJONGO', '').lower()
+USE_DJONGO = (USE_DJONGO in ('1', 'true', 'yes')) if USE_DJONGO != '' else None
 try:
     import djongo  # noqa: F401
     DJONGO_AVAILABLE = True
@@ -89,7 +90,10 @@ elif DB_ENGINE == 'postgres':
             'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
-elif DB_ENGINE == 'mongodb' and USE_DJONGO and DJONGO_AVAILABLE:
+elif (
+    (DB_ENGINE == 'mongodb' and (USE_DJONGO is True))
+    or (os.environ.get('MONGO_URI', '') and (USE_DJONGO is not False))
+) and DJONGO_AVAILABLE:
     _mongo_uri = os.environ.get('MONGO_URI', '')
     _client_cfg = {
         'host': os.environ.get('DB_HOST', '127.0.0.1'),
@@ -121,7 +125,7 @@ else:
     }
 
 # Optional direct MongoDB client for hybrid usage
-if DB_ENGINE == 'mongodb' and not USE_DJONGO:
+if DB_ENGINE == 'mongodb' and (USE_DJONGO is False):
     MONGO_HOST = os.environ.get('DB_HOST', '127.0.0.1')
     MONGO_PORT = int(os.environ.get('DB_PORT', '27017'))
     MONGO_NAME = os.environ.get('DB_NAME', 'stylesathi')

@@ -31,7 +31,8 @@ http.interceptors.request.use((config) => {
     method === 'get' && (
       /^\/products\/?(\?.*)?$/.test(url) ||
       /^\/products\/categories$/.test(url) ||
-      /^\/products\/\d+$/.test(url)
+      /^\/products\/\d+$/.test(url) ||
+      /^\/orders\/public\//.test(url)
     )
   );
   const isAuthEndpoint = /^\/auth\//.test(url);
