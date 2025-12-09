@@ -255,12 +255,12 @@ const ListNewProductPage = ({
         Swal.fire({ icon: 'info', title: 'Placeholder Image', text: 'Using a placeholder image URL. Please provide a valid https image URL to display your product image.' });
       }
     }
+    let uploadedUrls = [];
     try {
       const cloudName = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) || (typeof window !== 'undefined' && window.CLOUDINARY_CLOUD_NAME) || '';
       const uploadPreset = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_PRESET) || '';
       const uploadFolder = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_FOLDER) || 'stylesathi/uploads';
       const selectedFiles = Array.isArray(formData.images) ? formData.images.map(i => i.file).filter(Boolean) : [];
-      const uploadedUrls = [];
       if (cloudName && uploadPreset && selectedFiles.length > 0) {
         for (const f of selectedFiles) {
           if (!(f instanceof File)) continue;
@@ -325,7 +325,7 @@ const ListNewProductPage = ({
         fd.delete('image_url');
         fd.append('image', fileObj, fileObj.name);
       }
-      if (selectedFiles.length > 0 && (!uploadedUrls || uploadedUrls.length === 0)) {
+      if (selectedFiles.length > 0 && uploadedUrls.length === 0) {
         selectedFiles.forEach((f) => {
           if (f instanceof File) fd.append('images', f, f.name);
         });
