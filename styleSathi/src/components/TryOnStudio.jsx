@@ -54,10 +54,10 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
     let mounted = true
     catalogApi.getProducts().then((list) => {
       
-      const arr = (list || []).filter((p) => p.model_glb_url || p.image_url || p.image).map((p) => ({
+      const arr = (list || []).filter((p) => p.model_glb_url || p.image_url || p.image || (Array.isArray(p.images) && p.images.length > 0)).map((p) => ({
         id: p.id,
         title: p.title || p.name,
-        imageUrl: resolveAssetUrl(p.image_url || p.image || ''),
+        imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || ''),
         modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
       }))
       if (mounted) setItems(arr)

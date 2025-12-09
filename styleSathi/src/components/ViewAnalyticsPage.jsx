@@ -52,7 +52,7 @@ const ViewAnalyticsPage = ({
           for (const it of items) {
             const pid = (it.product && it.product.id) || null;
             const title = (it.product && it.product.title) || '';
-            const imageUrl = (it.product && it.product.image_url) || '';
+            const imageUrl = (it.product && (it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : ''))) || '';
             const qty = Number(it.quantity || 0);
             const price = Number(it.price || (it.product && it.product.price) || 0);
             if (!pid) continue;

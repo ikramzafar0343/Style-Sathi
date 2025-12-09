@@ -168,7 +168,7 @@ const TrackOrderPage = ({
       name: (it.product && it.product.title) || it.name || 'Item',
       price: Number(it.price || (it.product && it.product.price) || 0),
       quantity: it.quantity || 1,
-      image: (it.product && it.product.image_url) || it.image || it.image_url || '',
+      image: (it.product && (it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : ''))) || it.image || it.image_url || '',
       brand: (it.product && it.product.brand) || it.brand || ''
     })) : [],
     total: Number(orderData.total || 0),
@@ -208,7 +208,7 @@ const TrackOrderPage = ({
           name: it.product.title,
           price: Number(it.price),
           quantity: it.quantity,
-          image: it.product.image_url,
+          image: it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : ''),
           brand: it.product.brand,
           rating: it.product.rating,
         })),

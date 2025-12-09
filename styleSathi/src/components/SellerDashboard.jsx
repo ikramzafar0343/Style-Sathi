@@ -636,7 +636,7 @@ const SellerDashboard = ({
                   <div className="card-body text-center">
                     <div className="position-relative mb-3">
                       <img 
-                        src={resolveAssetUrl(product.imageUrl || product.image_url)} 
+                        src={resolveAssetUrl(product.imageUrl || product.image_url || (Array.isArray(product.images) ? product.images[0] : ''))} 
                         alt={product.title}
                         className="rounded"
                         style={{

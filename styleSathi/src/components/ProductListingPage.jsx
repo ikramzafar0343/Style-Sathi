@@ -59,7 +59,7 @@ const ProductListingPage = ({
       const normalized = (list || []).map((p) => ({
         ...p,
         inStock: (p?.in_stock !== undefined) ? !!p.in_stock : (Number(p?.stock || 0) > 0),
-        imageUrl: p?.image_url || p?.imageUrl || p?.image || '',
+        imageUrl: p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || p?.image || p?.imageUrl || '',
         rating: Number(p?.rating || 0),
         price: Number(p?.price || 0),
       }));
@@ -74,7 +74,7 @@ const ProductListingPage = ({
       const normalizedAll = (all || []).map((p) => ({
         ...p,
         inStock: (p?.in_stock !== undefined) ? !!p.in_stock : (Number(p?.stock || 0) > 0),
-        imageUrl: p?.image_url || p?.imageUrl || p?.image || '',
+        imageUrl: p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || p?.image || p?.imageUrl || '',
         rating: Number(p?.rating || 0),
         price: Number(p?.price || 0),
       }));
@@ -643,9 +643,9 @@ const ProductListingPage = ({
                           overflow: 'hidden'
                         }}
                       >
-                        {product.image_url || product.imageUrl ? (
+                        {(product.image_url || product.imageUrl || (Array.isArray(product.images) && product.images.length > 0)) ? (
                           <img
-                            src={resolveAssetUrl(product.image_url || product.imageUrl)}
+                            src={resolveAssetUrl(product.image_url || (Array.isArray(product.images) ? product.images[0] : '') || product.imageUrl)}
                             alt={product.title}
                             className="w-100 h-100 object-fit-cover"
                             style={{ 

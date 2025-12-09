@@ -98,17 +98,23 @@ const ProductDetailPage = ({
   
 
   // Generate product images array
-  const mainImage = product ? resolveAssetUrl(product.image_url || product.image || product.imageUrl) : null;
-  const productImages = product ? [
-    mainImage,
-    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=500&fit=crop',
-    'https://images.unsplash.com/photo-1508296695146-257a814070b4?w=500&h=500&fit=crop',
-    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&h=500&fit=crop'
-  ] : [];
+  const mainImage = product
+    ? resolveAssetUrl(
+        product.image_url
+        || (Array.isArray(product.images) ? product.images[0] : '')
+        || product.image
+        || product.imageUrl
+      )
+    : null;
+  const productImages = product
+    ? (Array.isArray(product.images) && product.images.length > 0
+        ? product.images.map((u) => resolveAssetUrl(u)).filter(Boolean)
+        : (mainImage ? [mainImage] : []))
+    : [];
 
   const thumbnails = productImages.map((imageUrl, index) => ({
     id: index + 1,
-    label: ['Front View', 'Side View', 'Top View', 'Detail View'][index],
+    label: ['Front View', 'Side View', 'Top View', 'Detail View'][index] || 'View',
     imageUrl: resolveAssetUrl(imageUrl)
   }));
 

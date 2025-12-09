@@ -90,7 +90,7 @@ const ARProductViewer = ({
             id: p.id,
             title: p.title || p.name,
             price: Number(p.price),
-            imageUrl: resolveAssetUrl(p.image_url || p.image),
+            imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image),
             modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
             sketchfabEmbedUrl: p.sketchfab_embed_url || '',
             brand: p.brand,
@@ -446,7 +446,7 @@ const ARProductViewer = ({
 
       {showTryOn && (
         <TryOnBase
-          overlaySrc={(productData?.modelGlbUrl || productData?.model_glb_url) ? '' : resolveAssetUrl(productData?.imageUrl || productData?.image_url)}
+          overlaySrc={(productData?.modelGlbUrl || productData?.model_glb_url) ? '' : resolveAssetUrl(productData?.imageUrl || productData?.image_url || (Array.isArray(productData?.images) ? productData.images[0] : ''))}
           modelGlbUrl={resolveAssetUrl(productData?.modelGlbUrl || productData?.model_glb_url || '')}
           mode={tryOnMode}
           onClose={() => setShowTryOn(false)}

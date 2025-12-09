@@ -64,8 +64,8 @@ const HomePage = ({
         const list = await catalogApi.getProducts({});
         const normalized = Array.isArray(list) ? list.map(p => ({
           ...p,
-          imageUrl: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
-          image_url: resolveAssetUrl(p.image_url || p.image || p.imageUrl),
+          imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl),
+          image_url: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl),
           model_glb_url: resolveAssetUrl(p.model_glb_url || p.modelGlbUrl),
         })) : list;
         setProducts(Array.isArray(normalized) ? normalized : []);
@@ -429,7 +429,7 @@ const HomePage = ({
                     onClick={() => onNavigateToProductDetail(product.id, product)}
                   >
                     {(() => {
-                      const imageSrc = resolveAssetUrl(product.image_url || product.imageUrl);
+                      const imageSrc = resolveAssetUrl(product.image_url || (Array.isArray(product.images) ? product.images[0] : '') || product.imageUrl);
                       return (
                         <img
                           src={imageSrc || styleSathiLogo}
