@@ -120,7 +120,15 @@ class ProductCreateView(generics.CreateAPIView):
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo is not None:
             try:
-                doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), getattr(user, 'email', None))
+                import secrets
+                owner_email = getattr(user, 'email', None)
+                doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), owner_email)
+                try:
+                    existing_doc = mongo['products'].find_one({'sku': doc['sku']})
+                    if existing_doc and existing_doc.get('owner_email') != owner_email:
+                        doc['sku'] = 'SKU-' + secrets.token_hex(4).upper()
+                except Exception:
+                    pass
                 mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
                 mongo['categories'].update_one({'name': doc['category']}, {'$set': {'name': doc['category']}}, upsert=True)
                 try:

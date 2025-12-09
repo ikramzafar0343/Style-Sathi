@@ -84,6 +84,14 @@ def product_doc_from_request(data, files, owner_email):
 
 def product_public(doc):
     cat_name = doc.get('category') if isinstance(doc.get('category'), str) else (doc.get('category', {}).get('name') if isinstance(doc.get('category'), dict) else '')
+    img = doc.get('image_url') or ''
+    if isinstance(img, str) and img.startswith('/'):
+        base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
+        img = base.rstrip('/') + img
+    glb = doc.get('model_glb_url') or ''
+    if isinstance(glb, str) and glb.startswith('/'):
+        base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
+        glb = base.rstrip('/') + glb
     return {
         'id': str(doc.get('_id')),
         'title': doc.get('title') or doc.get('name'),
@@ -92,8 +100,8 @@ def product_public(doc):
         'category': {'id': None, 'name': cat_name},
         'brand': doc.get('brand') or '',
         'description': doc.get('description') or '',
-        'image_url': doc.get('image_url') or '',
-        'model_glb_url': doc.get('model_glb_url') or '',
+        'image_url': img,
+        'model_glb_url': glb,
         'sketchfab_embed_url': doc.get('sketchfab_embed_url') or '',
         'in_stock': bool(doc.get('in_stock', True)),
         'rating': float(doc.get('rating') or 0),
