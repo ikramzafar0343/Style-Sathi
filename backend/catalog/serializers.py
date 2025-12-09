@@ -3,6 +3,11 @@ from django.conf import settings
 import os
 import json
 from .models import Product, Category
+try:
+    import cloudinary  # type: ignore
+    import cloudinary.uploader  # type: ignore
+except Exception:
+    cloudinary = None
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,31 +76,51 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             raise serializers.ValidationError({'category_id': 'This field is required'})
         validated_data['category'] = category_obj
-        # Save image file to media uploads if provided
+        # Save image file to cloud (if configured) or media uploads
         if image is not None:
             try:
-                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                os.makedirs(uploads_dir, exist_ok=True)
-                filename = f"product_{Category.objects.count()}_{image.name}"
-                safe_path = os.path.join(uploads_dir, filename)
-                with open(safe_path, 'wb') as f:
-                    for chunk in image.chunks():
-                        f.write(chunk)
-                validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
+                    upload_res = cloudinary.uploader.upload(
+                        image,
+                        resource_type='auto',
+                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
+                        use_filename=True,
+                        unique_filename=True,
+                    )
+                    validated_data['image_url'] = upload_res.get('secure_url') or upload_res.get('url') or ''
+                else:
+                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
+                    os.makedirs(uploads_dir, exist_ok=True)
+                    filename = f"product_{Category.objects.count()}_{image.name}"
+                    safe_path = os.path.join(uploads_dir, filename)
+                    with open(safe_path, 'wb') as f:
+                        for chunk in image.chunks():
+                            f.write(chunk)
+                    validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/placeholder.png'
 
-        # Save GLB file if provided
+        # Save GLB file if provided (cloud or media)
         if model_glb is not None:
             try:
-                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                os.makedirs(uploads_dir, exist_ok=True)
-                filename = f"product_{Category.objects.count()}_{model_glb.name}"
-                safe_path = os.path.join(uploads_dir, filename)
-                with open(safe_path, 'wb') as f:
-                    for chunk in model_glb.chunks():
-                        f.write(chunk)
-                validated_data['model_glb_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
+                    upload_res = cloudinary.uploader.upload(
+                        model_glb,
+                        resource_type='auto',
+                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
+                        use_filename=True,
+                        unique_filename=True,
+                    )
+                    validated_data['model_glb_url'] = upload_res.get('secure_url') or upload_res.get('url') or ''
+                else:
+                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
+                    os.makedirs(uploads_dir, exist_ok=True)
+                    filename = f"product_{Category.objects.count()}_{model_glb.name}"
+                    safe_path = os.path.join(uploads_dir, filename)
+                    with open(safe_path, 'wb') as f:
+                        for chunk in model_glb.chunks():
+                            f.write(chunk)
+                    validated_data['model_glb_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 validated_data['model_glb_url'] = ''
 
@@ -136,29 +161,49 @@ class ProductSerializer(serializers.ModelSerializer):
             if not sku or Product.objects.filter(sku=sku).exclude(pk=instance.pk).exists():
                 import secrets
                 validated_data['sku'] = f"SKU-{secrets.token_hex(4).upper()}"
-        # File updates
+        # File updates (cloud or media)
         if image is not None:
             try:
-                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                os.makedirs(uploads_dir, exist_ok=True)
-                filename = f"product_{instance.pk}_{image.name}"
-                safe_path = os.path.join(uploads_dir, filename)
-                with open(safe_path, 'wb') as f:
-                    for chunk in image.chunks():
-                        f.write(chunk)
-                instance.image_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
+                    upload_res = cloudinary.uploader.upload(
+                        image,
+                        resource_type='auto',
+                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
+                        use_filename=True,
+                        unique_filename=True,
+                    )
+                    instance.image_url = upload_res.get('secure_url') or upload_res.get('url') or instance.image_url
+                else:
+                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
+                    os.makedirs(uploads_dir, exist_ok=True)
+                    filename = f"product_{instance.pk}_{image.name}"
+                    safe_path = os.path.join(uploads_dir, filename)
+                    with open(safe_path, 'wb') as f:
+                        for chunk in image.chunks():
+                            f.write(chunk)
+                    instance.image_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 pass
         if model_glb is not None:
             try:
-                uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                os.makedirs(uploads_dir, exist_ok=True)
-                filename = f"product_{instance.pk}_{model_glb.name}"
-                safe_path = os.path.join(uploads_dir, filename)
-                with open(safe_path, 'wb') as f:
-                    for chunk in model_glb.chunks():
-                        f.write(chunk)
-                instance.model_glb_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
+                    upload_res = cloudinary.uploader.upload(
+                        model_glb,
+                        resource_type='auto',
+                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
+                        use_filename=True,
+                        unique_filename=True,
+                    )
+                    instance.model_glb_url = upload_res.get('secure_url') or upload_res.get('url') or instance.model_glb_url
+                else:
+                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
+                    os.makedirs(uploads_dir, exist_ok=True)
+                    filename = f"product_{instance.pk}_{model_glb.name}"
+                    safe_path = os.path.join(uploads_dir, filename)
+                    with open(safe_path, 'wb') as f:
+                        for chunk in model_glb.chunks():
+                            f.write(chunk)
+                    instance.model_glb_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
             except Exception:
                 pass
 
