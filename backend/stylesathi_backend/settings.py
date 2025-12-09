@@ -222,3 +222,10 @@ try:
         )
 except Exception:
     pass
+
+def absolute_media_url(rel_path: str) -> str:
+    base = os.environ.get('PUBLIC_BACKEND_URL')
+    if not base:
+        base = 'http://127.0.0.1:8000' if DEBUG else 'https://stylesathi-backend.onrender.com'
+    media = MEDIA_URL if MEDIA_URL.startswith('/') else ('/' + MEDIA_URL)
+    return base.rstrip('/') + media.rstrip('/') + '/' + rel_path.lstrip('/')

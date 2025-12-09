@@ -96,9 +96,9 @@ class ProductSerializer(serializers.ModelSerializer):
                     with open(safe_path, 'wb') as f:
                         for chunk in image.chunks():
                             f.write(chunk)
-                    validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                    validated_data['image_url'] = settings.absolute_media_url('uploads/' + filename)
             except Exception:
-                validated_data['image_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/placeholder.png'
+                validated_data['image_url'] = settings.absolute_media_url('uploads/placeholder.png')
 
         # Save GLB file if provided (cloud or media)
         if model_glb is not None:
@@ -120,7 +120,7 @@ class ProductSerializer(serializers.ModelSerializer):
                     with open(safe_path, 'wb') as f:
                         for chunk in model_glb.chunks():
                             f.write(chunk)
-                    validated_data['model_glb_url'] = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                    validated_data['model_glb_url'] = settings.absolute_media_url('uploads/' + filename)
             except Exception:
                 validated_data['model_glb_url'] = ''
 
@@ -181,7 +181,7 @@ class ProductSerializer(serializers.ModelSerializer):
                     with open(safe_path, 'wb') as f:
                         for chunk in image.chunks():
                             f.write(chunk)
-                    instance.image_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                    instance.image_url = settings.absolute_media_url('uploads/' + filename)
             except Exception:
                 pass
         if model_glb is not None:
@@ -203,7 +203,7 @@ class ProductSerializer(serializers.ModelSerializer):
                     with open(safe_path, 'wb') as f:
                         for chunk in model_glb.chunks():
                             f.write(chunk)
-                    instance.model_glb_url = settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+                    instance.model_glb_url = settings.absolute_media_url('uploads/' + filename)
             except Exception:
                 pass
 

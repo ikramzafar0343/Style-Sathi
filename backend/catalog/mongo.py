@@ -34,7 +34,7 @@ def _save_file(f, name_prefix):
     with open(safe_path, 'wb') as dst:
         for chunk in f.chunks():
             dst.write(chunk)
-    return settings.MEDIA_URL.rstrip('/') + '/uploads/' + filename
+    return settings.absolute_media_url('uploads/' + filename)
 
 def product_doc_from_request(data, files, owner_email):
     sku = (data.get('sku') or '').strip()
