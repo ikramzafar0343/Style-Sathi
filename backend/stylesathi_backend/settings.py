@@ -206,3 +206,19 @@ WHITENOISE_ADD_HEADERS_FUNCTION = whitenoise_add_headers
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+
+# Optional Cloudinary config for media uploads
+try:
+    import cloudinary
+    _cld_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    _cld_key = os.environ.get('CLOUDINARY_API_KEY')
+    _cld_secret = os.environ.get('CLOUDINARY_API_SECRET')
+    if _cld_name and _cld_key and _cld_secret:
+        cloudinary.config(
+            cloud_name=_cld_name,
+            api_key=_cld_key,
+            api_secret=_cld_secret,
+            secure=True,
+        )
+except Exception:
+    pass

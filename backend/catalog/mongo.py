@@ -1,6 +1,11 @@
 import os
 import secrets
 from django.conf import settings
+try:
+    import cloudinary
+    import cloudinary.uploader
+except Exception:
+    cloudinary = None
 
 def _uploads_dir():
     return os.path.join(str(settings.MEDIA_ROOT), 'uploads')
@@ -8,6 +13,21 @@ def _uploads_dir():
 def _save_file(f, name_prefix):
     if not f:
         return ''
+    try:
+        if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
+            try:
+                upload_res = cloudinary.uploader.upload(
+                    f,
+                    resource_type='auto',
+                    folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
+                    use_filename=True,
+                    unique_filename=True,
+                )
+                return upload_res.get('secure_url') or upload_res.get('url') or ''
+            except Exception:
+                pass
+    except Exception:
+        pass
     os.makedirs(_uploads_dir(), exist_ok=True)
     filename = f"{name_prefix}_{f.name}"
     safe_path = os.path.join(_uploads_dir(), filename)
