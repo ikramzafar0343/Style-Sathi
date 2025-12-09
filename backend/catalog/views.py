@@ -5,6 +5,16 @@ from rest_framework.exceptions import PermissionDenied
 from django.conf import settings
 from django.utils import timezone
 from .models import Product, Category
+SEED_SKUS = {
+    'RING-PREM-001',
+    'WATCH-LUX-001',
+    'GLASS-DES-001',
+    'GLASS-AR-TEST-001',
+    'GLB-SAMPLE-001',
+    'SHOE-CLASS-001',
+}
+SEED_BRAND = 'Sample'
+SEED_OWNER_EMAIL = 'seller@stylesathi.com'
 from .mongo import product_doc_from_request, product_public
 from cart.models import CartItem
 from .serializers import ProductSerializer, CategorySerializer
@@ -17,7 +27,7 @@ class ProductListView(generics.ListAPIView):
     search_fields = ['title', 'brand', 'description']
 
     def get_queryset(self):
-        qs = super().get_queryset().filter(in_stock=True)
+        qs = super().get_queryset().filter(in_stock=True).exclude(sku__in=SEED_SKUS).exclude(brand__iexact=SEED_BRAND)
         category = self.request.query_params.get('category')
         if category:
             qs = qs.filter(category__name__iexact=category)
@@ -37,7 +47,7 @@ class ProductListView(generics.ListAPIView):
                 page_size = min(100, max(1, int(params.get('page_size', '20'))))
             except Exception:
                 page_size = 20
-            query = {'in_stock': True}
+            query = {'in_stock': True, 'brand': {'$ne': SEED_BRAND}, 'sku': {'$nin': list(SEED_SKUS)}, 'owner_email': {'$ne': SEED_OWNER_EMAIL}}
             if cat:
                 query['category'] = cat
             if search:
