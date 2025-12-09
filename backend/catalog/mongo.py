@@ -1,11 +1,6 @@
 import os
 import secrets
 from django.conf import settings
-try:
-    import cloudinary
-    import cloudinary.uploader
-except Exception:
-    cloudinary = None
 
 def _uploads_dir():
     return os.path.join(str(settings.MEDIA_ROOT), 'uploads')
@@ -13,10 +8,19 @@ def _uploads_dir():
 def _save_file(f, name_prefix):
     if not f:
         return ''
+    cld = None
+    upl = None
     try:
-        if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
+        import importlib
+        cld = importlib.import_module('cloudinary')
+        upl = importlib.import_module('cloudinary.uploader')
+    except Exception:
+        cld = None
+        upl = None
+    try:
+        if cld and hasattr(cld, 'config') and getattr(cld, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
             try:
-                upload_res = cloudinary.uploader.upload(
+                upload_res = upl.upload(
                     f,
                     resource_type='auto',
                     folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
@@ -29,7 +33,9 @@ def _save_file(f, name_prefix):
     except Exception:
         pass
     os.makedirs(_uploads_dir(), exist_ok=True)
-    filename = f"{name_prefix}_{f.name}"
+    orig = os.path.basename(getattr(f, 'name', 'file'))
+    safe = ''.join([c if (c.isalnum() or c in ('-', '_', '.')) else '_' for c in orig])
+    filename = f"{name_prefix}_{secrets.token_hex(2)}_{safe}"
     safe_path = os.path.join(_uploads_dir(), filename)
     with open(safe_path, 'wb') as dst:
         for chunk in f.chunks():
@@ -63,7 +69,15 @@ def product_doc_from_request(data, files, owner_email):
         stock = 0
     feats = data.get('features') or []
     if isinstance(feats, str):
-        feats = [s.strip() for s in feats.split(',') if s.strip()]
+        try:
+            import json
+            parsed = json.loads(feats)
+            if isinstance(parsed, list):
+                feats = parsed
+            else:
+                feats = [str(parsed)]
+        except Exception:
+            feats = [s.strip() for s in feats.split(',') if s.strip()]
     return {
         'title': (data.get('title') or data.get('name') or '').strip(),
         'price': price,
@@ -85,13 +99,21 @@ def product_doc_from_request(data, files, owner_email):
 def product_public(doc):
     cat_name = doc.get('category') if isinstance(doc.get('category'), str) else (doc.get('category', {}).get('name') if isinstance(doc.get('category'), dict) else '')
     img = doc.get('image_url') or ''
-    if isinstance(img, str) and img.startswith('/'):
-        base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
-        img = base.rstrip('/') + img
+    if isinstance(img, str):
+        if img.startswith('/media/'):
+            rel = img[len('/media/'):]
+            img = settings.absolute_media_url(rel)
+        elif img.startswith('/'):
+            base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
+            img = base.rstrip('/') + img
     glb = doc.get('model_glb_url') or ''
-    if isinstance(glb, str) and glb.startswith('/'):
-        base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
-        glb = base.rstrip('/') + glb
+    if isinstance(glb, str):
+        if glb.startswith('/media/'):
+            relg = glb[len('/media/'):]
+            glb = settings.absolute_media_url(relg)
+        elif glb.startswith('/'):
+            base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
+            glb = base.rstrip('/') + glb
     return {
         'id': str(doc.get('_id')),
         'title': doc.get('title') or doc.get('name'),
