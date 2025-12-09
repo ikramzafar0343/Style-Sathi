@@ -35,3 +35,11 @@ class Product(models.Model):
 
     def __str__(self):
         return self.title
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
+    url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product_id}:{self.url}"

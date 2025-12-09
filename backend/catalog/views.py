@@ -119,64 +119,91 @@ class ProductCreateView(generics.CreateAPIView):
             return Response({'detail': 'Only sellers or admins can create products'}, status=403)
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo is not None:
+            import secrets
+            owner_email = getattr(user, 'email', None)
+            doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), owner_email)
+            existing_doc = None
             try:
-                import secrets
-                owner_email = getattr(user, 'email', None)
-                doc = product_doc_from_request(request.data, getattr(request, 'FILES', None), owner_email)
-                try:
-                    existing_doc = mongo['products'].find_one({'sku': doc['sku']})
-                    if existing_doc and existing_doc.get('owner_email') != owner_email:
-                        doc['sku'] = 'SKU-' + secrets.token_hex(4).upper()
-                except Exception:
-                    pass
+                existing_doc = mongo['products'].find_one({'sku': doc['sku']})
+            except Exception:
+                existing_doc = None
+            if existing_doc and existing_doc.get('owner_email') != owner_email:
+                doc['sku'] = 'SKU-' + secrets.token_hex(4).upper()
+            try:
                 mongo['products'].update_one({'sku': doc['sku']}, {'$set': doc}, upsert=True)
+            except Exception:
+                return Response({'detail': 'Failed to save product to database'}, status=400)
+            try:
                 mongo['categories'].update_one({'name': doc['category']}, {'$set': {'name': doc['category']}}, upsert=True)
-                try:
-                    cat, _ = Category.objects.get_or_create(name=doc.get('category') or '')
-                    existing = Product.objects.filter(sku=doc.get('sku') or '').first()
-                    if existing:
-                        existing.title = doc.get('title') or existing.title
-                        existing.price = doc.get('price') or existing.price
-                        existing.original_price = doc.get('original_price') or existing.original_price
-                        existing.category = cat
-                        existing.brand = doc.get('brand') or ''
-                        existing.description = doc.get('description') or ''
-                        existing.image_url = doc.get('image_url') or ''
-                        existing.model_glb_url = doc.get('model_glb_url') or ''
-                        existing.sketchfab_embed_url = doc.get('sketchfab_embed_url') or ''
-                        existing.in_stock = bool(doc.get('in_stock'))
-                        existing.rating = float(doc.get('rating') or 0)
-                        existing.features = list(doc.get('features') or [])
-                        existing.owner = user
-                        existing.stock = int(doc.get('stock') or 0)
-                        existing.save()
-                    else:
-                        Product.objects.create(
-                            title=doc.get('title') or '',
-                            price=doc.get('price') or 0,
-                            original_price=doc.get('original_price') or 0,
-                            category=cat,
-                            brand=doc.get('brand') or '',
-                            description=doc.get('description') or '',
-                            image_url=doc.get('image_url') or '',
-                            model_glb_url=doc.get('model_glb_url') or '',
-                            sketchfab_embed_url=doc.get('sketchfab_embed_url') or '',
-                            in_stock=bool(doc.get('in_stock')),
-                            rating=float(doc.get('rating') or 0),
-                            features=list(doc.get('features') or []),
-                            owner=user,
-                            sku=doc.get('sku') or '',
-                            stock=int(doc.get('stock') or 0)
-                        )
-                except Exception:
-                    pass
+            except Exception:
+                pass
+            try:
+                cat, _ = Category.objects.get_or_create(name=doc.get('category') or '')
+                orm_existing = Product.objects.filter(sku=doc.get('sku') or '').first()
+                if orm_existing:
+                    orm_existing.title = doc.get('title') or orm_existing.title
+                    orm_existing.price = doc.get('price') or orm_existing.price
+                    orm_existing.original_price = doc.get('original_price') or orm_existing.original_price
+                    orm_existing.category = cat
+                    orm_existing.brand = doc.get('brand') or ''
+                    orm_existing.description = doc.get('description') or ''
+                    orm_existing.image_url = doc.get('image_url') or ''
+                    orm_existing.model_glb_url = doc.get('model_glb_url') or ''
+                    orm_existing.sketchfab_embed_url = doc.get('sketchfab_embed_url') or ''
+                    orm_existing.in_stock = bool(doc.get('in_stock'))
+                    orm_existing.rating = float(doc.get('rating') or 0)
+                    orm_existing.features = list(doc.get('features') or [])
+                    orm_existing.owner = user
+                    orm_existing.stock = int(doc.get('stock') or 0)
+                    orm_existing.save()
+                    try:
+                        imgs = list(doc.get('images') or [])
+                        from .models import ProductImage
+                        for u in imgs:
+                            try:
+                                ProductImage.objects.create(product=orm_existing, url=u)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                else:
+                    p = Product.objects.create(
+                        title=doc.get('title') or '',
+                        price=doc.get('price') or 0,
+                        original_price=doc.get('original_price') or 0,
+                        category=cat,
+                        brand=doc.get('brand') or '',
+                        description=doc.get('description') or '',
+                        image_url=doc.get('image_url') or '',
+                        model_glb_url=doc.get('model_glb_url') or '',
+                        sketchfab_embed_url=doc.get('sketchfab_embed_url') or '',
+                        in_stock=bool(doc.get('in_stock')),
+                        rating=float(doc.get('rating') or 0),
+                        features=list(doc.get('features') or []),
+                        owner=user,
+                        sku=doc.get('sku') or '',
+                        stock=int(doc.get('stock') or 0)
+                    )
+                    try:
+                        imgs = list(doc.get('images') or [])
+                        from .models import ProductImage
+                        for u in imgs:
+                            try:
+                                ProductImage.objects.create(product=p, url=u)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
                 out = mongo['products'].find_one({'sku': doc['sku']})
                 return Response(product_public(out), status=201)
             except Exception:
-                return Response({'detail': 'Failed to create product'}, status=400)
+                return Response({'detail': 'Failed to return product'}, status=400)
         allowed = {
             'title', 'price', 'original_price', 'category_name', 'category_id', 'brand', 'description',
-            'image_url', 'image', 'model_glb', 'model_glb_url', 'sketchfab_embed_url', 'in_stock',
+            'image_url', 'images', 'image', 'model_glb', 'model_glb_url', 'sketchfab_embed_url', 'in_stock',
             'rating', 'features', 'sku', 'stock'
         }
         clean_data = {k: v for k, v in request.data.items() if k in allowed}

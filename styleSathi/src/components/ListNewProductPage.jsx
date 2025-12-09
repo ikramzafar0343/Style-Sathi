@@ -245,7 +245,7 @@ const ListNewProductPage = ({
         return false;
       }
     };
-    const fileObj = formData.images?.[0]?.file;
+    let fileObj = formData.images?.[0]?.file;
     let imageUrl = '';
     if (!fileObj) {
       const rawImageUrl = formData.image_url || formData.images[0]?.url || '';
@@ -255,6 +255,31 @@ const ListNewProductPage = ({
         Swal.fire({ icon: 'info', title: 'Placeholder Image', text: 'Using a placeholder image URL. Please provide a valid https image URL to display your product image.' });
       }
     }
+    try {
+      const cloudName = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) || (typeof window !== 'undefined' && window.CLOUDINARY_CLOUD_NAME) || '';
+      const uploadPreset = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_PRESET) || '';
+      const uploadFolder = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_FOLDER) || 'stylesathi/uploads';
+      const selectedFiles = Array.isArray(formData.images) ? formData.images.map(i => i.file).filter(Boolean) : [];
+      const uploadedUrls = [];
+      if (cloudName && uploadPreset && selectedFiles.length > 0) {
+        for (const f of selectedFiles) {
+          if (!(f instanceof File)) continue;
+          const cu = new FormData();
+          cu.append('file', f);
+          cu.append('upload_preset', uploadPreset);
+          cu.append('folder', uploadFolder);
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: cu });
+          const data = await res.json();
+          if (data && (data.secure_url || data.url)) {
+            uploadedUrls.push(data.secure_url || data.url);
+          }
+        }
+        if (uploadedUrls.length > 0) {
+          imageUrl = uploadedUrls[0];
+          fileObj = null;
+        }
+      }
+    } catch { void 0; }
 
     const skuValue = (formData.sku?.trim()) || `SKU-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
@@ -285,16 +310,49 @@ const ListNewProductPage = ({
           } catch {
             fd.append(k, v.join(', '));
           }
+        } else if (k === 'images' && Array.isArray(v)) {
+          try {
+            fd.append(k, JSON.stringify(v));
+          } catch {
+            v.forEach(u => fd.append(k, String(u)));
+          }
         } else {
           fd.append(k, String(v));
         }
       });
-      if (fileObj instanceof File) {
+      const selectedFiles = Array.isArray(formData.images) ? formData.images.map(i => i.file).filter(Boolean) : [];
+      if (fileObj instanceof File && selectedFiles.length === 0) {
         fd.delete('image_url');
         fd.append('image', fileObj, fileObj.name);
       }
+      if (selectedFiles.length > 0 && (!uploadedUrls || uploadedUrls.length === 0)) {
+        selectedFiles.forEach((f) => {
+          if (f instanceof File) fd.append('images', f, f.name);
+        });
+      }
       if (glbFile instanceof File) {
-        fd.append('model_glb', glbFile, glbFile.name);
+        try {
+          const cloudName = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) || (typeof window !== 'undefined' && window.CLOUDINARY_CLOUD_NAME) || '';
+          const uploadPreset = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_PRESET) || '';
+          const uploadFolder = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_FOLDER) || 'stylesathi/uploads';
+          if (cloudName && uploadPreset) {
+            const cg = new FormData();
+            cg.append('file', glbFile);
+            cg.append('upload_preset', uploadPreset);
+            cg.append('folder', uploadFolder);
+            const resg = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: cg });
+            const datag = await resg.json();
+            if (datag && (datag.secure_url || datag.url)) {
+              fd.append('model_glb_url', datag.secure_url || datag.url);
+            } else {
+              fd.append('model_glb', glbFile, glbFile.name);
+            }
+          } else {
+            fd.append('model_glb', glbFile, glbFile.name);
+          }
+        } catch {
+          fd.append('model_glb', glbFile, glbFile.name);
+        }
       }
       try {
         const entries = [];
