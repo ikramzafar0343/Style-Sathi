@@ -59,7 +59,7 @@ DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite').lower()
 USE_DJONGO = os.environ.get('USE_DJONGO', '').lower()
 USE_DJONGO = (USE_DJONGO in ('1', 'true', 'yes')) if USE_DJONGO != '' else None
 try:
-    import djongo  # noqa: F401
+    import djongo  # type: ignore  # noqa: F401
     DJONGO_AVAILABLE = True
 except Exception:
     DJONGO_AVAILABLE = False
@@ -209,7 +209,7 @@ GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
 # Optional Cloudinary config for media uploads
 try:
-    import cloudinary
+    import cloudinary  # type: ignore
     _cld_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
     _cld_key = os.environ.get('CLOUDINARY_API_KEY')
     _cld_secret = os.environ.get('CLOUDINARY_API_SECRET')
