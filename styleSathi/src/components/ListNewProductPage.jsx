@@ -65,7 +65,6 @@ const ListNewProductPage = ({
   const secondaryColor = "#2c67c4";
 
   const [categoriesList, setCategoriesList] = useState([]);
-  const [categoriesMap, setCategoriesMap] = useState({});
   const usageDurations = [
     'Less than 1 month',
     '1-3 months', 
@@ -94,12 +93,8 @@ const ListNewProductPage = ({
       try {
         const cats = await catalogApi.getCategories();
         setCategoriesList(cats.map((c) => c.name));
-        const map = {};
-        for (const c of cats) { map[c.name] = c.id; }
-        setCategoriesMap(map);
       } catch {
         setCategoriesList([]);
-        setCategoriesMap({});
       }
     };
     loadCats();
@@ -231,11 +226,7 @@ const ListNewProductPage = ({
     if (!formData.description?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product description is required' }); return; }
     if (!formData.category?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product category is required' }); return; }
     if (!formData.brand?.trim()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Product brand is required' }); return; }
-    if (!categoriesMap[formData.category]) {
-      Swal.fire({ icon: 'warning', title: 'Invalid Category', text: 'Please select a valid category from the list' });
-      setIsLoading(false);
-      return;
-    }
+    // Proceed even if the category map is not resolved; backend accepts category_name
     if (!Number.isFinite(priceNum) || priceNum <= 0) { Swal.fire({ icon: 'warning', title: 'Invalid Price', text: 'Price must be a positive number' }); return; }
     const isValidHttpUrl = (u) => {
       try {
@@ -318,19 +309,18 @@ const ListNewProductPage = ({
         }
       });
       const selectedFiles = Array.isArray(formData.images) ? formData.images.map(i => i.file).filter(Boolean) : [];
-      if (fileObj instanceof File && selectedFiles.length === 0) {
-        fd.delete('image_url');
-        fd.append('image', fileObj, fileObj.name);
-      }
-      if (selectedFiles.length > 0 && uploadedUrls.length === 0) {
-        selectedFiles.forEach((f) => {
-          if (f instanceof File) fd.append('images', f, f.name);
-        });
-        const primary = selectedFiles[0];
+      if (selectedFiles.length > 0) {
+        const primary = fileObj instanceof File ? fileObj : selectedFiles[0];
         if (primary instanceof File) {
           fd.delete('image_url');
           fd.append('image', primary, primary.name);
         }
+        selectedFiles.forEach((f) => {
+          if (f instanceof File) fd.append('images', f, f.name);
+        });
+      } else if (fileObj instanceof File) {
+        fd.delete('image_url');
+        fd.append('image', fileObj, fileObj.name);
       }
       if (glbFile instanceof File) {
         try {

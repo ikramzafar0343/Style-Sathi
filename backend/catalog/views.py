@@ -216,8 +216,8 @@ class ProductCreateView(generics.CreateAPIView):
             return Response({'errors': serializer.errors}, status=400)
         try:
             product = serializer.save()
-        except Exception:
-            return Response({'detail': 'Failed to create product'}, status=400)
+        except Exception as e:
+            return Response({'detail': str(e) or 'Failed to create product'}, status=400)
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo is not None:
             try:
