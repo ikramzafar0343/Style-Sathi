@@ -16,7 +16,7 @@ import { BsGrid3X3Gap, BsStarFill } from 'react-icons/bs';
 import { GiBigDiamondRing, GiWatch, GiConverseShoe, GiTopHat, GiHairStrands } from 'react-icons/gi';
 import { IoIosGlasses } from 'react-icons/io';
 import { FaPaintBrush, FaGem } from 'react-icons/fa';
-import { catalogApi, resolveAssetUrl } from '../services/api';
+import { catalogApi, resolveAssetUrl, getProductImageUrl } from '../services/api';
 
 const HomePage = ({
   onNavigateToProducts,
@@ -64,8 +64,8 @@ const HomePage = ({
         const list = await catalogApi.getProducts({});
         const normalized = Array.isArray(list) ? list.map(p => ({
           ...p,
-          imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl),
-          image_url: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl),
+          imageUrl: getProductImageUrl(p),
+          image_url: getProductImageUrl(p),
           model_glb_url: resolveAssetUrl(p.model_glb_url || p.modelGlbUrl),
         })) : list;
         setProducts(Array.isArray(normalized) ? normalized : []);

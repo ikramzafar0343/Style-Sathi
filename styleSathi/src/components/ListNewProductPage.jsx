@@ -329,6 +329,11 @@ const ListNewProductPage = ({
         selectedFiles.forEach((f) => {
           if (f instanceof File) fd.append('images', f, f.name);
         });
+        const primary = selectedFiles[0];
+        if (primary instanceof File) {
+          fd.delete('image_url');
+          fd.append('image', primary, primary.name);
+        }
       }
       if (glbFile instanceof File) {
         try {

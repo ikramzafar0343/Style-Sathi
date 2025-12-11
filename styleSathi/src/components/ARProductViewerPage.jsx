@@ -13,7 +13,7 @@ import {
 import { BsSearch } from "react-icons/bs";
 import TryOnBase from './tryon/TryOnBase';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
-import { catalogApi, resolveAssetUrl } from '../services/api';
+import { catalogApi, resolveAssetUrl, getProductImageUrl } from '../services/api';
 
 const mainColor = "#c4a62c";
 const secondaryColor = "#2c67c4";
@@ -121,7 +121,7 @@ const ARProductViewer = ({
             id: p.id,
             title: p.title || p.name,
             price: Number(p.price),
-            imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image),
+            imageUrl: getProductImageUrl(p),
             modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
             sketchfabEmbedUrl: p.sketchfab_embed_url || '',
             brand: p.brand,

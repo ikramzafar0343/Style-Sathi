@@ -18,7 +18,7 @@ import {
 } from "react-icons/fa";
 import { BsSearch, BsStarFill } from "react-icons/bs";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
-import { catalogApi, resolveAssetUrl } from '../services/api';
+import { catalogApi, resolveAssetUrl, getProductImageUrl } from '../services/api';
 
 const ProductDetailPage = ({ 
   productId, 
@@ -98,14 +98,7 @@ const ProductDetailPage = ({
   
 
   // Generate product images array
-  const mainImage = product
-    ? resolveAssetUrl(
-        product.image_url
-        || (Array.isArray(product.images) ? product.images[0] : '')
-        || product.image
-        || product.imageUrl
-      )
-    : null;
+  const mainImage = product ? getProductImageUrl(product) : null;
   const productImages = product
     ? (Array.isArray(product.images) && product.images.length > 0
         ? product.images.map((u) => resolveAssetUrl(u)).filter(Boolean)

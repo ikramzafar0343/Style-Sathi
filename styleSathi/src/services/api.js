@@ -103,4 +103,10 @@ export const adminApi = {
     json(`/auth/admin/users`, { method: 'DELETE', token, body: { id, reason, email } }),
 };
 
+export const getProductImageUrl = (p) => {
+  const u = (p && (p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl)) || '';
+  const r = resolveAssetUrl(u);
+  return r || 'https://via.placeholder.com/600x600?text=Product+Image';
+};
+
 export { resolveAssetUrl, apiOrigin };

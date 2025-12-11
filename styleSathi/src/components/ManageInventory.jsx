@@ -26,7 +26,7 @@ import {
   FaDownload,
   FaUpload
 } from 'react-icons/fa';
-import { catalogApi, ordersApi, resolveAssetUrl } from '../services/api';
+import { catalogApi, getProductImageUrl, ordersApi, resolveAssetUrl } from '../services/api';
  
 import NotificationBell from './NotificationBell';
 
@@ -137,7 +137,7 @@ const ManageInventory = ({
             status: p.in_stock ? 'active' : 'out_of_stock',
             sales: agg.sales,
             revenue: agg.revenue,
-            image: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl),
+            image: getProductImageUrl(p),
             category: catName || 'all',
             subcategory: catName,
             lastUpdated: new Date().toISOString(),
