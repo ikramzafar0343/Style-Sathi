@@ -19,10 +19,23 @@ export const http = axios.create({
   baseURL: BASE_URL,
 });
 
+let isRefreshing = false;
+let refreshPromise = null;
+const getTokens = () => {
+  try {
+    const t = localStorage.getItem('authTokens');
+    return t ? JSON.parse(t) : null;
+  } catch { return null; }
+};
+const setTokens = (tokens) => {
+  try {
+    if (tokens) localStorage.setItem('authTokens', JSON.stringify(tokens));
+    else localStorage.removeItem('authTokens');
+  } catch { void 0; }
+};
+
 http.interceptors.request.use((config) => {
-  const token = (typeof window !== 'undefined' && localStorage.getItem('authTokens'))
-    ? JSON.parse(localStorage.getItem('authTokens') || '{}').access
-    : null;
+  const token = (typeof window !== 'undefined') ? (getTokens()?.access || null) : null;
   const method = String(config.method || 'get').toLowerCase();
   const url = String(config.url || '');
   const isPublicGet = (
@@ -46,9 +59,36 @@ http.interceptors.response.use(
     const resp = error.response;
     const status = resp?.status;
     const message = resp?.data?.detail || resp?.data?.error || (Array.isArray(resp?.data?.errors) ? resp.data.errors.join(', ') : resp?.statusText || error.message);
-    if (typeof window !== 'undefined' && (status === 401 || status === 403)) {
-      const msg = String(message || '').toLowerCase();
-      if (msg.includes('invalid token') || msg.includes('authentication credentials were not provided')) {
+    const msg = String(message || '').toLowerCase();
+    const original = error.config || {};
+    const isAuthEndpoint = /^\/auth\//.test(String(original.url || ''));
+    if ((status === 401 || status === 403) && !isAuthEndpoint) {
+      const tokens = getTokens();
+      const refresh = tokens?.refresh;
+      const tokenInvalid = msg.includes('token_not_valid') || msg.includes('given token not valid') || msg.includes('invalid token');
+      if (refresh && tokenInvalid && !original._retry) {
+        try {
+          if (!isRefreshing) {
+            isRefreshing = true;
+            refreshPromise = axios.post(`${BASE_URL.replace(/\/$/, '')}/auth/refresh`, { refresh });
+          }
+          const res = await refreshPromise;
+          const newTokens = res?.data?.tokens || null;
+          if (newTokens?.access) {
+            setTokens(newTokens);
+            original.headers = { ...(original.headers || {}), Authorization: `Bearer ${newTokens.access}` };
+            original._retry = true;
+            return http(original);
+          }
+        } catch (e) {
+          try { await Swal.fire({ icon: 'warning', title: 'Session expired', text: 'Please log in again.' }); } catch { void 0; }
+          setTokens(null);
+        } finally {
+          isRefreshing = false;
+          refreshPromise = null;
+        }
+      }
+      if (typeof window !== 'undefined') {
         try { await Swal.fire({ icon: 'warning', title: 'Authentication Required', text: message || 'Please log in to continue' }); } catch { void 0; }
       }
     }
@@ -64,7 +104,7 @@ export const resolveAssetUrl = (u) => {
   const s = typeof u === 'string' ? u.trim() : String(u || '').trim();
   if (!s) return null;
   if (s.startsWith('http://') || s.startsWith('https://')) return s;
-  const IS_DEV = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
-  if (IS_DEV && (s.startsWith('/static') || s.startsWith('/media'))) return s;
+  const IS_DEV_LOCAL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
+  if (IS_DEV_LOCAL && (s.startsWith('/static') || s.startsWith('/media'))) return s;
   return `${apiOrigin}${s.startsWith('/') ? '' : '/'}${s}`;
 };

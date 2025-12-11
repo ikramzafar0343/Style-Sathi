@@ -141,6 +141,33 @@ class LoginView(APIView):
         except Exception:
             return Response({'detail': 'Login failed. Please try again later.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class RefreshView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token = request.data.get('refresh') or request.data.get('token')
+        if not token:
+            return Response({'detail': 'Refresh token required'}, status=status.HTTP_400_BAD_REQUEST)
+        mongo = getattr(settings, 'MONGO_DB', None)
+        if mongo is not None:
+            from .jwt import decode_token
+            try:
+                payload = decode_token(token)
+                if payload.get('type') != 'refresh':
+                    return Response({'detail': 'Invalid token type'}, status=status.HTTP_401_UNAUTHORIZED)
+                email = payload.get('sub')
+                role = payload.get('role') or 'customer'
+                tokens = create_tokens(email, role)
+                return Response({'tokens': tokens})
+            except Exception:
+                return Response({'detail': 'Invalid or expired token'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            rt = RefreshToken(token)
+            access = str(rt.access_token)
+            return Response({'tokens': {'access': access, 'refresh': str(rt)}})
+        except Exception:
+            return Response({'detail': 'Invalid or expired token'}, status=status.HTTP_401_UNAUTHORIZED)
+
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

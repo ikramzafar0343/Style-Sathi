@@ -185,7 +185,7 @@ CORS_ALLOW_METHODS = [
     'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'
 ]
 CORS_ALLOW_HEADERS = [
-    'authorization', 'content-type', 'accept', 'origin', 'x-requested-with'
+    'authorization', 'Authorization', 'content-type', 'accept', 'origin', 'x-requested-with'
 ]
 CORS_ALLOW_CREDENTIALS = os.environ.get('CORS_ALLOW_CREDENTIALS', 'False').lower() in ('1', 'true', 'yes')
 

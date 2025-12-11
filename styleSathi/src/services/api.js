@@ -18,6 +18,7 @@ export const authApi = {
     json(`/auth/login`, { method: 'POST', body: { email, password, expected_role } }),
   adminLogin: ({ email, password }) =>
     json(`/auth/admin/login`, { method: 'POST', body: { email, password, expected_role: 'admin' } }),
+  refresh: ({ refresh }) => json(`/auth/refresh`, { method: 'POST', body: { refresh } }),
   signup: (data) => json(`/auth/signup`, { method: 'POST', body: data }),
   sellerSignup: (data) => json(`/auth/seller-signup`, { method: 'POST', body: data }),
   requestPasswordReset: ({ email }) => json(`/auth/password/forgot`, { method: 'POST', body: { email } }),
