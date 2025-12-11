@@ -18,6 +18,37 @@ import { catalogApi, resolveAssetUrl } from '../services/api';
 const mainColor = "#c4a62c";
 const secondaryColor = "#2c67c4";
 
+const MODE_LABELS = {
+  hat: 'Try Hat On',
+  glasses: 'Try Glasses On',
+  hair: 'Try Hair On',
+  jewelry: 'Try Jewelry On',
+  makeup: 'Try Makeup On',
+  hand: 'Try Ring On',
+  wrist: 'Try Watch On',
+  feet: 'Try Shoes On',
+  face: 'Try On Face',
+  body: 'Try On Body'
+};
+
+const CATEGORY_TRYON_MAP = {
+  hat: ['hat'],
+  cap: ['hat'],
+  glasses: ['glasses'],
+  sunglasses: ['glasses'],
+  hair: ['hair'],
+  jewelry: ['jewelry'],
+  jewellery: ['jewelry'],
+  makeup: ['makeup'],
+  rings: ['hand'],
+  ring: ['hand'],
+  watches: ['wrist'],
+  watch: ['wrist'],
+  shoes: ['feet'],
+  shoe: ['feet'],
+  footwear: ['feet']
+};
+
 const ARProductViewer = ({ 
   product, 
   onClose, 
@@ -123,6 +154,12 @@ const ARProductViewer = ({
   const displayedProducts = getFilteredProducts();
 
   const productData = selectedProduct || product || internalProducts[0];
+  const normalizeCategory = (c) => String(typeof c === 'string' ? c : (c?.name || '')).trim().toLowerCase();
+  const allowedModes = (() => {
+    const cat = normalizeCategory(productData?.category);
+    const modes = CATEGORY_TRYON_MAP[cat] || [];
+    return modes.length ? modes : ['body'];
+  })();
   useEffect(() => {
     const mv = modelViewerRef.current;
     if (!mv) return;
@@ -413,11 +450,11 @@ const ARProductViewer = ({
           <div className="mb-4">
             <h6 className="fw-bold text-uppercase small mb-3" style={{ color: mainColor }}>TRY ON</h6>
             <div className="d-grid gap-2">
-              <button onClick={() => { setTryOnMode('face'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Face</button>
-              <button onClick={() => { setTryOnMode('hand'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Hand</button>
-              <button onClick={() => { setTryOnMode('wrist'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Wrist</button>
-              <button onClick={() => { setTryOnMode('feet'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Feet</button>
-              <button onClick={() => { setTryOnMode('body'); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>Try On Body</button>
+              {allowedModes.map((m) => (
+                <button key={m} onClick={() => { setTryOnMode(m); setShowTryOn(true); }} className="btn fw-semibold" style={{ backgroundColor: mainColor, color: '#fff' }}>
+                  {MODE_LABELS[m] || `Try On ${m}`}
+                </button>
+              ))}
             </div>
           </div>
 
