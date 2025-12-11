@@ -283,12 +283,9 @@ const ListNewProductPage = ({
 
     const skuValue = (formData.sku?.trim()) || `SKU-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    const categoryId = categoriesMap[formData.category];
-
     const payload = {
       title: formData.name.trim(),
       description: formData.description.trim(),
-      ...(Number.isFinite(Number(categoryId)) ? { category_id: Number(categoryId) } : {}),
       category_name: formData.category,
       brand: formData.brand.trim(),
       price: priceNum,
