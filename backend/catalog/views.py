@@ -156,16 +156,7 @@ class ProductCreateView(generics.CreateAPIView):
                     orm_existing.owner = user
                     orm_existing.stock = int(doc.get('stock') or 0)
                     orm_existing.save()
-                    try:
-                        imgs = list(doc.get('images') or [])
-                        from .models import ProductImage
-                        for u in imgs:
-                            try:
-                                ProductImage.objects.create(product=orm_existing, url=u)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                    # Ignore extra image URLs for ORM sync; primary URL stored in image_url
                 else:
                     p = Product.objects.create(
                         title=doc.get('title') or '',
@@ -184,16 +175,7 @@ class ProductCreateView(generics.CreateAPIView):
                         sku=doc.get('sku') or '',
                         stock=int(doc.get('stock') or 0)
                     )
-                    try:
-                        imgs = list(doc.get('images') or [])
-                        from .models import ProductImage
-                        for u in imgs:
-                            try:
-                                ProductImage.objects.create(product=p, url=u)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                    # Ignore extra image URLs for ORM sync; primary URL stored in image_url
             except Exception:
                 pass
             try:

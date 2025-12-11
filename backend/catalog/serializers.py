@@ -195,43 +195,12 @@ class ProductSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'FILES'):
             try:
-                fnlist = []
-                try:
-                    fnlist = request.FILES.getlist('images')
-                except Exception:
-                    pass
-                extra = []
-                for imgf in fnlist:
+                for imgf in request.FILES.getlist('images'):
                     try:
-                        if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-                            up2 = cloudinary.uploader.upload(
-                                imgf,
-                                resource_type='auto',
-                                folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
-                                use_filename=True,
-                                unique_filename=True,
-                            )
-                            u = up2.get('secure_url') or up2.get('url') or ''
-                            if u:
-                                extra.append(u)
-                        else:
-                            uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                            os.makedirs(uploads_dir, exist_ok=True)
-                            filename = f"product_{instance.pk}_{imgf.name}"
-                            safe_path = os.path.join(uploads_dir, filename)
-                            with open(safe_path, 'wb') as f:
-                                for chunk in imgf.chunks():
-                                    f.write(chunk)
-                            extra.append(settings.absolute_media_url('uploads/' + filename))
+                        pi = ProductImage(product=instance)
+                        pi.image.save(imgf.name, imgf, save=True)
                     except Exception:
                         pass
-                if extra:
-                    for imgf in request.FILES.getlist('images'):
-                        try:
-                            pi = ProductImage(product=instance)
-                            pi.image.save(imgf.name, imgf, save=True)
-                        except Exception:
-                            pass
             except Exception:
                 pass
         if images_urls is not None and isinstance(images_urls, list):
