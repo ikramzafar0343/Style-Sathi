@@ -37,6 +37,14 @@ export const catalogApi = {
       return [];
     });
   },
+  // Convenience alias to match spec: /products/by-category?name={category}
+  // Backend currently supports /products/?category=, so we proxy to that.
+  getProductsByCategory: (name) => json(`/products/?category=${encodeURIComponent(String(name||''))}`).then((resp) => {
+    if (Array.isArray(resp)) return resp;
+    if (resp && Array.isArray(resp.results)) return resp.results;
+    if (resp && Array.isArray(resp.products)) return resp.products;
+    return [];
+  }),
   getProduct: (id) => json(`/products/${id}`),
   getMyProducts: (token) => json(`/products/mine`, { token }),
   createProduct: (token, data) => json(`/products/create`, { method: 'POST', token, body: data }),
