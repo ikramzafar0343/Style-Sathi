@@ -14,7 +14,11 @@ class Product(models.Model):
     category = models.ForeignKey(Category, related_name='products', on_delete=models.PROTECT)
     brand = models.CharField(max_length=128, blank=True)
     description = models.TextField(blank=True)
+    # Primary image via default storage (Cloudinary or local)
+    image = models.ImageField(upload_to='uploads/', null=True, blank=True)
+    # Backward-compatible URL field used when image is provided as URL
     image_url = models.URLField(blank=True)
+    # Optional GLB model URL (saved to storage or provided as absolute URL)
     model_glb_url = models.URLField(blank=True)
     sketchfab_embed_url = models.URLField(blank=True)
     in_stock = models.BooleanField(default=True)
@@ -38,8 +42,8 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
-    url = models.URLField()
+    image = models.ImageField(upload_to='uploads/')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.product_id}:{self.url}"
+        return f"{self.product_id}:{getattr(self.image, 'name', '')}"

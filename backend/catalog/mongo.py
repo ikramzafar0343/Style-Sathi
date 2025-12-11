@@ -40,7 +40,13 @@ def _save_file(f, name_prefix):
     with open(safe_path, 'wb') as dst:
         for chunk in f.chunks():
             dst.write(chunk)
-    return settings.absolute_media_url('uploads/' + filename)
+    return _absolute_media_url('uploads/' + filename)
+
+def _absolute_media_url(rel_path: str) -> str:
+    base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
+    media = getattr(settings, 'MEDIA_URL', '/media/')
+    media = media if media.startswith('/') else ('/' + media)
+    return base.rstrip('/') + media.rstrip('/') + '/' + str(rel_path).lstrip('/')
 
 def product_doc_from_request(data, files, owner_email):
     sku = (data.get('sku') or '').strip()
@@ -127,7 +133,7 @@ def product_public(doc):
     if isinstance(img, str):
         if img.startswith('/media/'):
             rel = img[len('/media/'):]
-            img = settings.absolute_media_url(rel)
+            img = _absolute_media_url(rel)
         elif img.startswith('/'):
             base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
             img = base.rstrip('/') + img
@@ -135,7 +141,7 @@ def product_public(doc):
     if isinstance(glb, str):
         if glb.startswith('/media/'):
             relg = glb[len('/media/'):]
-            glb = settings.absolute_media_url(relg)
+            glb = _absolute_media_url(relg)
         elif glb.startswith('/'):
             base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
             glb = base.rstrip('/') + glb
@@ -145,7 +151,7 @@ def product_public(doc):
             if isinstance(u, str):
                 if u.startswith('/media/'):
                     rel = u[len('/media/'):]
-                    imgs.append(settings.absolute_media_url(rel))
+                    imgs.append(_absolute_media_url(rel))
                 elif u.startswith('/'):
                     base = os.environ.get('PUBLIC_BACKEND_URL') or ('http://127.0.0.1:8000' if getattr(settings, 'DEBUG', False) else 'https://stylesathi-backend.onrender.com')
                     imgs.append(base.rstrip('/') + u)

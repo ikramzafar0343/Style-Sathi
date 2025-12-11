@@ -1,5 +1,5 @@
 from rest_framework import generics, filters, permissions
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django.conf import settings
@@ -111,7 +111,7 @@ class MyProductListView(generics.ListAPIView):
 class ProductCreateView(generics.CreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def create(self, request, *args, **kwargs):
         user = request.user

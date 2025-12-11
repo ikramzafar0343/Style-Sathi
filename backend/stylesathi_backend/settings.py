@@ -21,6 +21,9 @@ INSTALLED_APPS = [
     'catalog',
     'cart',
     'orders',
+    # Optional: Cloudinary
+    'cloudinary',
+    'cloudinary_storage',
 ]
 
 MIDDLEWARE = [
@@ -207,25 +210,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
-# Optional Cloudinary config for media uploads
+USE_CLOUDINARY = os.environ.get('USE_CLOUDINARY', 'false').lower() in ('1', 'true', 'yes')
 try:
     import cloudinary  # type: ignore
-    _cld_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
-    _cld_key = os.environ.get('CLOUDINARY_API_KEY')
-    _cld_secret = os.environ.get('CLOUDINARY_API_SECRET')
-    if _cld_name and _cld_key and _cld_secret:
+    if USE_CLOUDINARY:
+        CLOUDINARY_STORAGE = {
+            'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+            'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+            'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+        }
         cloudinary.config(
-            cloud_name=_cld_name,
-            api_key=_cld_key,
-            api_secret=_cld_secret,
+            cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+            api_key=CLOUDINARY_STORAGE['API_KEY'],
+            api_secret=CLOUDINARY_STORAGE['API_SECRET'],
             secure=True,
         )
+        DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    else:
+        DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 except Exception:
-    pass
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
-def absolute_media_url(rel_path: str) -> str:
-    base = os.environ.get('PUBLIC_BACKEND_URL')
-    if not base:
-        base = 'http://127.0.0.1:8000' if DEBUG else 'https://stylesathi-backend.onrender.com'
-    media = MEDIA_URL if MEDIA_URL.startswith('/') else ('/' + MEDIA_URL)
-    return base.rstrip('/') + media.rstrip('/') + '/' + rel_path.lstrip('/')
+# Deprecated: use request.build_absolute_uri(storage.url(...))

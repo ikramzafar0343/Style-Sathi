@@ -1,14 +1,10 @@
 from rest_framework import serializers
 from django.conf import settings
+from django.core.files.storage import default_storage
 import os
 import json
 from .models import Product, Category
 from .models import ProductImage
-try:
-    import cloudinary  # type: ignore
-    import cloudinary.uploader  # type: ignore
-except Exception:
-    cloudinary = None
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,38 +16,43 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(write_only=True, required=False)
     category_id = serializers.IntegerField(write_only=True, required=False)
     image = serializers.ImageField(write_only=True, required=False)
-    model_glb = serializers.FileField(write_only=True, required=False)
     images = serializers.SerializerMethodField()
+    model_glb = serializers.FileField(write_only=True, required=False)
+    features = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
     class Meta:
         model = Product
         fields = ['id', 'title', 'price', 'original_price', 'category', 'category_name', 'category_id', 'brand', 'description', 'image_url', 'images', 'image', 'model_glb', 'model_glb_url', 'sketchfab_embed_url', 'in_stock', 'rating', 'features', 'owner', 'sku', 'stock']
         read_only_fields = ['owner']
 
+    def to_internal_value(self, data):
+        # Normalize features if provided as JSON string
+        if isinstance(data.get('features'), str):
+            try:
+                parsed = json.loads(data.get('features'))
+                if isinstance(parsed, list):
+                    data = {**data, 'features': parsed}
+            except Exception:
+                pass
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
-        features_raw = self.initial_data.get('features')
-        if isinstance(features_raw, str):
+        # Coerce booleans and numbers
+        raw_in_stock = self.initial_data.get('in_stock', attrs.get('in_stock'))
+        if isinstance(raw_in_stock, str):
+            attrs['in_stock'] = raw_in_stock.strip().lower() in ('1', 'true', 'yes')
+        # Prefer uploaded files if both file and image_url provided
+        has_file = bool(self.initial_data.get('image')) or (hasattr(self.context.get('request'), 'FILES') and bool(self.context.get('request').FILES.get('image')))
+        raw_url = self.initial_data.get('image_url')
+        if has_file and raw_url:
+            attrs['image_url'] = ''
+        # Ensure numbers
+        for num_field in ('price', 'original_price', 'stock'):
+            val = self.initial_data.get(num_field, attrs.get(num_field))
             try:
-                parsed = json.loads(features_raw)
-                if isinstance(parsed, list):
-                    attrs['features'] = parsed
-                else:
-                    attrs['features'] = [str(parsed)]
+                attrs[num_field] = float(val) if num_field != 'stock' else int(val)
             except Exception:
-                attrs['features'] = [s.strip() for s in features_raw.split(',') if s.strip()]
-        elif isinstance(features_raw, list):
-            attrs['features'] = features_raw
-        images_raw = self.initial_data.get('images')
-        if images_raw is not None and isinstance(images_raw, str):
-            try:
-                parsed = json.loads(images_raw)
-                if isinstance(parsed, list):
-                    attrs['images'] = parsed
-            except Exception:
-                attrs['images'] = [s.strip() for s in images_raw.split(',') if s.strip()]
-        for k in ['brand', 'description', 'image_url', 'model_glb_url', 'sketchfab_embed_url']:
-            if attrs.get(k) is None:
-                attrs[k] = ''
+                pass
         return super().validate(attrs)
 
     def create(self, validated_data):
@@ -74,7 +75,7 @@ class ProductSerializer(serializers.ModelSerializer):
         # Pop files if present in validated data
         image = validated_data.pop('image', None)
         model_glb = validated_data.pop('model_glb', None)
-        images_urls = validated_data.pop('images', []) or []
+        images_urls = []
         category_obj = None
         if category_id:
             try:
@@ -87,109 +88,56 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             raise serializers.ValidationError({'category_id': 'This field is required'})
         validated_data['category'] = category_obj
-        # Save image file to cloud (if configured) or media uploads
+
+        # Create product first (without handling files) so we have an instance
+        request = self.context.get('request')
+        owner = getattr(request, 'user', None)
+        if owner and owner.is_authenticated:
+            validated_data['owner'] = owner
+        product = Product.objects.create(**validated_data)
+
+        # Save primary image if provided
         if image is not None:
             try:
-                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-                    upload_res = cloudinary.uploader.upload(
-                        image,
-                        resource_type='auto',
-                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
-                        use_filename=True,
-                        unique_filename=True,
-                    )
-                    validated_data['image_url'] = upload_res.get('secure_url') or upload_res.get('url') or ''
-                    if validated_data['image_url']:
-                        images_urls = [validated_data['image_url']] + images_urls
-                else:
-                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                    os.makedirs(uploads_dir, exist_ok=True)
-                    filename = f"product_{Category.objects.count()}_{image.name}"
-                    safe_path = os.path.join(uploads_dir, filename)
-                    with open(safe_path, 'wb') as f:
-                        for chunk in image.chunks():
-                            f.write(chunk)
-                    validated_data['image_url'] = settings.absolute_media_url('uploads/' + filename)
-                    images_urls = [validated_data['image_url']] + images_urls
+                product.image.save(image.name, image, save=True)
+                if getattr(product.image, 'url', ''):
+                    url = product.image.url
+                    if request:
+                        url = request.build_absolute_uri(url)
+                    product.image_url = url
+                    product.save(update_fields=['image_url'])
             except Exception:
-                validated_data['image_url'] = settings.absolute_media_url('uploads/placeholder.png')
+                pass
 
-        # Save GLB file if provided (cloud or media)
+        # Save GLB file if provided using default storage
         if model_glb is not None:
             try:
-                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-                    upload_res = cloudinary.uploader.upload(
-                        model_glb,
-                        resource_type='auto',
-                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
-                        use_filename=True,
-                        unique_filename=True,
-                    )
-                    validated_data['model_glb_url'] = upload_res.get('secure_url') or upload_res.get('url') or ''
-                else:
-                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                    os.makedirs(uploads_dir, exist_ok=True)
-                    filename = f"product_{Category.objects.count()}_{model_glb.name}"
-                    safe_path = os.path.join(uploads_dir, filename)
-                    with open(safe_path, 'wb') as f:
-                        for chunk in model_glb.chunks():
-                            f.write(chunk)
-                    validated_data['model_glb_url'] = settings.absolute_media_url('uploads/' + filename)
+                name = default_storage.save(f"uploads/{model_glb.name}", model_glb)
+                url = default_storage.url(name)
+                if request:
+                    url = request.build_absolute_uri(url)
+                product.model_glb_url = url
+                product.save(update_fields=['model_glb_url'])
             except Exception:
-                validated_data['model_glb_url'] = ''
+                pass
 
-        request = self.context.get('request')
+        # Additional images
         if request and hasattr(request, 'FILES'):
             try:
-                fnlist = []
-                try:
-                    fnlist = request.FILES.getlist('images')
-                except Exception:
-                    pass
-                for imgf in fnlist:
+                for imgf in request.FILES.getlist('images'):
                     try:
-                        if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-                            up2 = cloudinary.uploader.upload(
-                                imgf,
-                                resource_type='auto',
-                                folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
-                                use_filename=True,
-                                unique_filename=True,
-                            )
-                            u = up2.get('secure_url') or up2.get('url') or ''
-                            if u:
-                                images_urls.append(u)
-                        else:
-                            uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                            os.makedirs(uploads_dir, exist_ok=True)
-                            filename = f"product_{Category.objects.count()}_{imgf.name}"
-                            safe_path = os.path.join(uploads_dir, filename)
-                            with open(safe_path, 'wb') as f:
-                                for chunk in imgf.chunks():
-                                    f.write(chunk)
-                            images_urls.append(settings.absolute_media_url('uploads/' + filename))
+                        pi = ProductImage(product=product)
+                        pi.image.save(imgf.name, imgf, save=True)
+                        images_urls.append(request.build_absolute_uri(pi.image.url) if getattr(pi.image, 'url', '') else '')
                     except Exception:
                         pass
             except Exception:
                 pass
 
-        if not validated_data.get('image_url') and images_urls:
-            validated_data['image_url'] = images_urls[0]
-
-        # Ensure SKU uniqueness
-        sku = validated_data.get('sku')
-        if not sku or Product.objects.filter(sku=sku).exists():
-            import secrets
-            validated_data['sku'] = f"SKU-{secrets.token_hex(4).upper()}"
-        if request and request.user and request.user.is_authenticated:
-            validated_data['owner'] = request.user
-        product = Product.objects.create(**validated_data)
-        if images_urls:
-            for u in images_urls:
-                try:
-                    ProductImage.objects.create(product=product, url=u)
-                except Exception:
-                    pass
+        # Backfill image_url if missing but we have extra images
+        if not product.image_url and images_urls:
+            product.image_url = [u for u in images_urls if u][0]
+            product.save(update_fields=['image_url'])
         return product
 
     def update(self, instance, validated_data):
@@ -222,55 +170,23 @@ class ProductSerializer(serializers.ModelSerializer):
         # File updates (cloud or media)
         if image is not None:
             try:
-                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-                    upload_res = cloudinary.uploader.upload(
-                        image,
-                        resource_type='auto',
-                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
-                        use_filename=True,
-                        unique_filename=True,
-                    )
-                    instance.image_url = upload_res.get('secure_url') or upload_res.get('url') or instance.image_url
-                    if instance.image_url:
-                        try:
-                            instance.images = [instance.image_url] + list(instance.images or [])
-                        except Exception:
-                            instance.images = [instance.image_url]
-                else:
-                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                    os.makedirs(uploads_dir, exist_ok=True)
-                    filename = f"product_{instance.pk}_{image.name}"
-                    safe_path = os.path.join(uploads_dir, filename)
-                    with open(safe_path, 'wb') as f:
-                        for chunk in image.chunks():
-                            f.write(chunk)
-                    instance.image_url = settings.absolute_media_url('uploads/' + filename)
-                    try:
-                        instance.images = [instance.image_url] + list(instance.images or [])
-                    except Exception:
-                        instance.images = [instance.image_url]
+                instance.image.save(image.name, image, save=True)
+                if getattr(instance.image, 'url', ''):
+                    url = instance.image.url
+                    request = self.context.get('request')
+                    if request:
+                        url = request.build_absolute_uri(url)
+                    instance.image_url = url
             except Exception:
                 pass
         if model_glb is not None:
             try:
-                if cloudinary and hasattr(cloudinary, 'config') and getattr(cloudinary, 'config') and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-                    upload_res = cloudinary.uploader.upload(
-                        model_glb,
-                        resource_type='auto',
-                        folder=os.environ.get('CLOUDINARY_UPLOAD_FOLDER', 'stylesathi/uploads'),
-                        use_filename=True,
-                        unique_filename=True,
-                    )
-                    instance.model_glb_url = upload_res.get('secure_url') or upload_res.get('url') or instance.model_glb_url
-                else:
-                    uploads_dir = os.path.join(str(settings.MEDIA_ROOT), 'uploads')
-                    os.makedirs(uploads_dir, exist_ok=True)
-                    filename = f"product_{instance.pk}_{model_glb.name}"
-                    safe_path = os.path.join(uploads_dir, filename)
-                    with open(safe_path, 'wb') as f:
-                        for chunk in model_glb.chunks():
-                            f.write(chunk)
-                    instance.model_glb_url = settings.absolute_media_url('uploads/' + filename)
+                name = default_storage.save(f"uploads/{model_glb.name}", model_glb)
+                url = default_storage.url(name)
+                request = self.context.get('request')
+                if request:
+                    url = request.build_absolute_uri(url)
+                instance.model_glb_url = url
             except Exception:
                 pass
 
@@ -310,24 +226,44 @@ class ProductSerializer(serializers.ModelSerializer):
                     except Exception:
                         pass
                 if extra:
-                    for u in extra:
+                    for imgf in request.FILES.getlist('images'):
                         try:
-                            ProductImage.objects.create(product=instance, url=u)
+                            pi = ProductImage(product=instance)
+                            pi.image.save(imgf.name, imgf, save=True)
                         except Exception:
                             pass
             except Exception:
                 pass
         if images_urls is not None and isinstance(images_urls, list):
-            try:
-                for u in images_urls:
-                    ProductImage.objects.create(product=instance, url=u)
-            except Exception:
-                pass
+            # If image URLs are provided as strings, skip since we store images as files now
+            pass
         instance.save()
         return instance
 
     def get_images(self, obj):
+        request = self.context.get('request')
+        urls = []
         try:
-            return [im.url for im in getattr(obj, 'images').all()]
+            for im in getattr(obj, 'images').all():
+                u = getattr(im.image, 'url', '')
+                if u:
+                    urls.append(request.build_absolute_uri(u) if request else u)
         except Exception:
-            return []
+            pass
+        return urls
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        # Normalize image_url to absolute
+        if getattr(instance, 'image', None) and getattr(instance.image, 'url', ''):
+            url = instance.image.url
+            data['image_url'] = request.build_absolute_uri(url) if request else url
+        elif isinstance(data.get('image_url'), str):
+            url = data['image_url']
+            if request and url.startswith('/'):
+                data['image_url'] = request.build_absolute_uri(url)
+        # model_glb_url absolute
+        if isinstance(data.get('model_glb_url'), str) and data['model_glb_url'] and request and data['model_glb_url'].startswith('/'):
+            data['model_glb_url'] = request.build_absolute_uri(data['model_glb_url'])
+        return data
