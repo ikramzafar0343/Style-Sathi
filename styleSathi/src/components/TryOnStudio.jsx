@@ -13,8 +13,20 @@ import SkinAnalysis from './tryon/SkinAnalysis'
 import TryOnBase from './tryon/TryOnBase'
 import { catalogApi, resolveAssetUrl } from '../services/api'
 
+const MODE_CATEGORY_MAP = {
+  glasses: 'Glasses',
+  makeup: 'Makeup',
+  hair: 'Hair',
+  skin: 'Skin',
+  jewelry: 'Jewelry',
+  hat: ['Hat', 'Cap'],
+  hand: 'Rings',
+  wrist: 'Watches',
+  feet: 'Shoes',
+}
+
 const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccountSettings, cartItemsCount = 0 }) => {
-  const [mode, setMode] = useState('face')
+  const [mode, setMode] = useState('glasses')
   const [_items, setItems] = useState([])
   const [selected, _setSelected] = useState(null)
   const [makeupColors, setMakeupColors] = useState({ 
@@ -50,20 +62,29 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
   const mainColor = '#c4a62c'
   const secondaryColor = '#2c67c4'
 
+  const loadCategoryProducts = async (cat) => {
+    const names = Array.isArray(cat) ? cat : [cat]
+    for (let i = 0; i < names.length; i++) {
+      try {
+        const list = await catalogApi.getProducts({ category: names[i] })
+        const arr = (list || [])
+          .filter((p) => p.model_glb_url || p.image_url || p.image || (Array.isArray(p.images) && p.images.length > 0))
+          .map((p) => ({
+            id: p.id,
+            title: p.title || p.name,
+            imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || ''),
+            modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
+          }))
+        if (arr.length > 0) { setItems(arr); return }
+      } catch { /* try next name */ }
+    }
+    setItems([])
+  }
+
   useEffect(() => {
-    let mounted = true
-    catalogApi.getProducts().then((list) => {
-      
-      const arr = (list || []).filter((p) => p.model_glb_url || p.image_url || p.image || (Array.isArray(p.images) && p.images.length > 0)).map((p) => ({
-        id: p.id,
-        title: p.title || p.name,
-        imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || ''),
-        modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
-      }))
-      if (mounted) setItems(arr)
-    }).catch(() => { if (mounted) setItems([]) })
-    return () => { mounted = false }
-  }, [])
+    const cat = MODE_CATEGORY_MAP[mode]
+    loadCategoryProducts(cat)
+  }, [mode])
 
   
 
@@ -186,7 +207,6 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
           <div className="col-md-3">
             <div className="card">
               <div className="card-body d-grid gap-2">
-                <button className={`btn ${mode==='face'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='face'?mainColor:undefined, color: mode==='face'?'#fff':undefined }} onClick={() => setMode('face')}><IoIosGlasses className="me-2"/>Face</button>
                 <button className={`btn ${mode==='glasses'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='glasses'?mainColor:undefined, color: mode==='glasses'?'#fff':undefined }} onClick={() => setMode('glasses')}><IoIosGlasses className="me-2"/>Glasses</button>
                 <button className={`btn ${mode==='makeup'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='makeup'?mainColor:undefined, color: mode==='makeup'?'#fff':undefined }} onClick={() => setMode('makeup')}>Makeup</button>
                 <button className={`btn ${mode==='hair'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='hair'?mainColor:undefined, color: mode==='hair'?'#fff':undefined }} onClick={() => setMode('hair')}><GiHairStrands className="me-2"/>Hair</button>
@@ -196,7 +216,6 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
                 <button className={`btn ${mode==='hand'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='hand'?mainColor:undefined, color: mode==='hand'?'#fff':undefined }} onClick={() => setMode('hand')}><GiBigDiamondRing className="me-2"/>Hand</button>
                 <button className={`btn ${mode==='wrist'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='wrist'?mainColor:undefined, color: mode==='wrist'?'#fff':undefined }} onClick={() => setMode('wrist')}><IoMdWatch className="me-2"/>Wrist</button>
                 <button className={`btn ${mode==='feet'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='feet'?mainColor:undefined, color: mode==='feet'?'#fff':undefined }} onClick={() => setMode('feet')}><GiConverseShoe className="me-2"/>Feet</button>
-                <button className={`btn ${mode==='body'?'btn':'btn-outline-primary'}`} style={{ backgroundColor: mode==='body'?mainColor:undefined, color: mode==='body'?'#fff':undefined }} onClick={() => setMode('body')}><GiWatch className="me-2"/>Body</button>
               </div>
             </div>
           </div>
@@ -269,6 +288,24 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
                       applyMakeup={applyMakeup}
                     />
                   )}
+                </div>
+                <div className="mt-3">
+                  <div className="d-flex overflow-auto gap-3 py-2">
+                    {_items.map((it) => (
+                      <div key={it.id} className="card border-0 shadow-sm" style={{ minWidth: '180px', borderRadius: '12px' }} onClick={() => _setSelected(it)}>
+                        <div className="card-body">
+                          {it.imageUrl ? (
+                            <img src={it.imageUrl} alt={it.title} className="rounded mb-2" style={{ width: '100%', height: '100px', objectFit: 'cover', border: `2px solid ${secondaryColor}30` }} />
+                          ) : (
+                            <div className="rounded d-flex align-items-center justify-content-center mb-2" style={{ width: '100%', height: '100px', backgroundColor: `${secondaryColor}20`, border: `2px solid ${secondaryColor}30` }}>
+                              <IoIosGlasses style={{ color: secondaryColor }} />
+                            </div>
+                          )}
+                          <div className="small fw-semibold" style={{ color: mainColor }}>{it.title}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 {mode === 'skin' && (
                   <div className="mt-3 card">
