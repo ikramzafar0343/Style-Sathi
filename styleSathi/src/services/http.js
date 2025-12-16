@@ -112,10 +112,7 @@ export const resolveAssetUrl = (u) => {
   const s = typeof u === 'string' ? u.trim() : String(u || '').trim();
   if (!s) return null;
   if (s.startsWith('http://') || s.startsWith('https://')) return s;
-  const IS_DEV_LOCAL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
-  if (IS_DEV_LOCAL && (s.startsWith('/static') || s.startsWith('/media'))) {
-    const m = s.startsWith('/static/uploads/') ? s.replace('/static/uploads/', '/media/uploads/') : s;
-    return m;
-  }
-  return `${apiOrigin}${s.startsWith('/') ? '' : '/'}${s}`;
+  const needsMap = s.startsWith('/static/uploads/');
+  const mapped = needsMap ? s.replace('/static/uploads/', '/media/uploads/') : s;
+  return `${apiOrigin}${mapped.startsWith('/') ? '' : '/'}${mapped}`;
 };

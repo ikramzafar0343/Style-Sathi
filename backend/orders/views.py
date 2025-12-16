@@ -2,6 +2,8 @@ from datetime import date, timedelta
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.schemas.openapi import AutoSchema
+from rest_framework import serializers
 from .models import Order, OrderItem
 from cart.models import Cart, CartItem
 from catalog.models import Product
@@ -9,8 +11,38 @@ from .serializers import OrderSerializer
 from django.conf import settings
 from .mongo import ensure_indexes, build_order_doc, public_order
 
+class SimpleAutoSchema(AutoSchema):
+    def get_request_body(self, path, method):
+        schema = getattr(self.view, 'request_body_schema', None)
+        if schema and method.lower() in ('post', 'put', 'patch'):
+            return {'content': {'application/json': {'schema': schema}}}
+        return super().get_request_body(path, method)
+
+    def get_responses(self, path, method):
+        resp = getattr(self.view, 'responses_schema', None)
+        if resp:
+            out = {}
+            for status, schema in resp.items():
+                out[str(status)] = {'content': {'application/json': {'schema': schema}}}
+            return out
+        return super().get_responses(path, method)
+
 class OrderCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SimpleAutoSchema()
+    request_body_schema = {
+        'type': 'object',
+        'properties': {
+            'items': {'type': 'array', 'items': {'type': 'object'}},
+            'shipping': {'$ref': '#/components/schemas/ShippingAddress'},
+            'payment_method': {'type': 'string'}
+        },
+        'required': ['items']
+    }
+    responses_schema = {
+        201: {'$ref': '#/components/schemas/Order'},
+        400: {'type': 'object'}
+    }
 
     def post(self, request):
         items = request.data.get('items', [])
@@ -94,6 +126,11 @@ class OrderCreateView(APIView):
 
 class OrderDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SimpleAutoSchema()
+    responses_schema = {
+        200: {'$ref': '#/components/schemas/Order'},
+        404: {'type': 'object'}
+    }
 
     def get(self, request, pk):
         mongo = getattr(settings, 'MONGO_DB', None)
@@ -113,6 +150,10 @@ class OrderDetailView(APIView):
 
 class SellerOrderListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SimpleAutoSchema()
+    responses_schema = {
+        200: {'type': 'array', 'items': {'$ref': '#/components/schemas/Order'}}
+    }
 
     def get(self, request):
         role = getattr(request.user, 'role', 'customer')
@@ -142,6 +183,12 @@ class SellerOrderListView(APIView):
 
 class SellerOrderDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SimpleAutoSchema()
+    responses_schema = {
+        200: {'$ref': '#/components/schemas/Order'},
+        403: {'type': 'object'},
+        404: {'type': 'object'}
+    }
 
     def get(self, request, pk):
         role = getattr(request.user, 'role', 'customer')
@@ -174,6 +221,19 @@ class SellerOrderDetailView(APIView):
 
 class OrderStatusUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SimpleAutoSchema()
+    request_body_schema = {
+        'type': 'object',
+        'properties': {
+            'status': {'type': 'string', 'enum': ['confirmed', 'processing', 'in_transit', 'delivered', 'cancelled']}
+        },
+        'required': ['status']
+    }
+    responses_schema = {
+        200: {'type': 'object'},
+        403: {'type': 'object'},
+        404: {'type': 'object'}
+    }
 
     def patch(self, request, pk):
         role = getattr(request.user, 'role', 'customer')

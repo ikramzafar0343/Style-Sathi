@@ -684,6 +684,7 @@ const App = () => {
             onNavigateToAR={navigateToAR}
             onNavigateToAccountSettings={navigateToCustomerAccountSettings}
             onLogout={handleLogout}
+            cartItemsCount={cartItems.length}
           />
         );
       case 'cart':

@@ -2,6 +2,7 @@ from rest_framework import status, permissions
 from django.db import models
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.schemas.openapi import AutoSchema
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import SignupSerializer, LoginSerializer, UserSerializer
 from .models import User, ModerationReport
@@ -27,6 +28,23 @@ def build_tokens(user):
 
 class SignupView(APIView):
     permission_classes = [permissions.AllowAny]
+    class SimpleAutoSchema(AutoSchema):
+        def get_request_body(self, path, method):
+            schema = getattr(self.view, 'request_body_schema', None)
+            if schema and method.lower() in ('post', 'put', 'patch'):
+                return {'content': {'application/json': {'schema': schema}}}
+            return super().get_request_body(path, method)
+        def get_responses(self, path, method):
+            resp = getattr(self.view, 'responses_schema', None)
+            if resp:
+                out = {}
+                for status, schema in resp.items():
+                    out[str(status)] = {'content': {'application/json': {'schema': schema}}}
+                return out
+            return super().get_responses(path, method)
+    schema = SimpleAutoSchema()
+    request_body_schema = {'$ref': '#/components/schemas/SignupRequest'}
+    responses_schema = {201: {'type': 'object', 'properties': {'user': {'$ref': '#/components/schemas/User'}, 'tokens': {'$ref': '#/components/schemas/AuthTokens'}}}, 400: {'type': 'object'}}
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
@@ -69,6 +87,9 @@ class SignupView(APIView):
 
 class SellerSignupView(APIView):
     permission_classes = [permissions.AllowAny]
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'$ref': '#/components/schemas/SignupRequest'}
+    responses_schema = {201: {'type': 'object', 'properties': {'user': {'$ref': '#/components/schemas/User'}, 'tokens': {'$ref': '#/components/schemas/AuthTokens'}}}, 400: {'type': 'object'}}
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
@@ -110,6 +131,9 @@ class SellerSignupView(APIView):
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = 'login'
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'$ref': '#/components/schemas/LoginRequest'}
+    responses_schema = {200: {'type': 'object', 'properties': {'user': {'$ref': '#/components/schemas/User'}, 'tokens': {'$ref': '#/components/schemas/AuthTokens'}}}, 400: {'type': 'object'}}
 
     def post(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
@@ -143,6 +167,9 @@ class LoginView(APIView):
 
 class RefreshView(APIView):
     permission_classes = [permissions.AllowAny]
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'type': 'object', 'properties': {'refresh': {'type': 'string'}}, 'required': ['refresh']}
+    responses_schema = {200: {'type': 'object', 'properties': {'tokens': {'$ref': '#/components/schemas/AuthTokens'}}}, 401: {'type': 'object'}}
 
     def post(self, request):
         token = request.data.get('refresh') or request.data.get('token')
@@ -170,6 +197,8 @@ class RefreshView(APIView):
 
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    responses_schema = {200: {'type': 'object', 'properties': {'user': {'$ref': '#/components/schemas/User'}}}, 404: {'type': 'object'}}
 
     def get(self, request):
         mongo = getattr(settings, 'MONGO_DB', None)
@@ -187,6 +216,7 @@ class ProfileView(APIView):
         return Response({'user': UserSerializer(request.user).data})
 
     def patch(self, request):
+        self.request_body_schema = {'type': 'object', 'properties': {'first_name': {'type': 'string'}, 'last_name': {'type': 'string'}, 'phone': {'type': 'string'}, 'business_name': {'type': 'string'}, 'business_type': {'type': 'string'}}}
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo is not None:
             email = getattr(request.user, 'email', None)
@@ -219,6 +249,7 @@ class ProfileView(APIView):
         return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
+        self.responses_schema = {200: {'type': 'object'}}
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo is not None:
             email = getattr(request.user, 'email', None)
@@ -235,6 +266,9 @@ class ProfileView(APIView):
 class ForgotPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = 'password_forgot'
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'type': 'object', 'properties': {'email': {'type': 'string', 'format': 'email'}}, 'required': ['email']}
+    responses_schema = {200: {'type': 'object'}, 400: {'type': 'object'}}
 
     def post(self, request):
         email = request.data.get('email')
@@ -255,6 +289,9 @@ class ForgotPasswordView(APIView):
 
 class ResetPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'type': 'object', 'properties': {'email': {'type': 'string', 'format': 'email'}, 'token': {'type': 'string'}, 'new_password': {'type': 'string'}}, 'required': ['email', 'token', 'new_password']}
+    responses_schema = {200: {'type': 'object'}, 400: {'type': 'object'}}
 
     def post(self, request):
         email = request.data.get('email')
@@ -277,6 +314,9 @@ PHONE_CODES = {}
 
 class PhoneVerificationRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'type': 'object', 'properties': {'phone': {'type': 'string'}}}
+    responses_schema = {200: {'type': 'object'}, 400: {'type': 'object'}}
 
     def post(self, request):
         phone = request.data.get('phone') or request.user.phone
@@ -292,6 +332,9 @@ class PhoneVerificationRequestView(APIView):
 
 class PhoneVerificationVerifyView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    request_body_schema = {'type': 'object', 'properties': {'code': {'type': 'string'}}, 'required': ['code']}
+    responses_schema = {200: {'type': 'object'}, 400: {'type': 'object'}}
 
     def post(self, request):
         code = request.data.get('code')
@@ -304,6 +347,8 @@ class PhoneVerificationVerifyView(APIView):
 
 class AdminUsersListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    responses_schema = {200: {'type': 'object'}}
 
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
@@ -343,6 +388,7 @@ class AdminUsersListView(APIView):
         return Response({'users': data})
 
     def delete(self, request):
+        self.request_body_schema = {'type': 'object', 'properties': {'id': {'type': 'string'}, 'email': {'type': 'string', 'format': 'email'}, 'reason': {'type': 'string'}}, 'required': ['reason']}
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         data = getattr(request, 'data', {}) or {}
@@ -397,6 +443,8 @@ class AdminUsersListView(APIView):
 
 class AdminReportsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    responses_schema = {200: {'type': 'object'}}
 
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
@@ -436,6 +484,7 @@ class AdminReportsView(APIView):
         return Response({'reports': data})
 
     def patch(self, request):
+        self.request_body_schema = {'type': 'object', 'properties': {'id': {'type': 'string'}, 'action': {'type': 'string'}, 'status': {'type': 'string'}, 'reason': {'type': 'string'}}, 'required': ['id']}
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         data = getattr(request, 'data', {}) or {}
@@ -469,6 +518,7 @@ class AdminReportsView(APIView):
         return Response({'id': rid, 'status': new_status.title()})
 
     def post(self, request):
+        self.request_body_schema = {'type': 'object', 'properties': {'type': {'type': 'string'}, 'user_email': {'type': 'string', 'format': 'email'}, 'description': {'type': 'string'}, 'severity': {'type': 'string', 'enum': ['low','medium','high']}}, 'required': ['type']}
         if getattr(request.user, 'role', 'customer') != 'admin':
             return Response({'code': 'forbidden', 'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         data = getattr(request, 'data', {}) or {}
@@ -510,6 +560,8 @@ class AdminReportsView(APIView):
 
 class AdminDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    responses_schema = {200: {'type': 'object'}}
 
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':
@@ -619,6 +671,8 @@ class AdminDashboardView(APIView):
 
 class AdminAnalyticsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    schema = SignupView.SimpleAutoSchema()
+    responses_schema = {200: {'type': 'object'}}
 
     def get(self, request):
         if getattr(request.user, 'role', 'customer') != 'admin':

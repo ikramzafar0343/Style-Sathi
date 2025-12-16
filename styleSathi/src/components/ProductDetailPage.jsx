@@ -31,13 +31,13 @@ const ProductDetailPage = ({
   onNavigateToAR,
   onNavigateToCheckout,
   onAddToCart,
-  onLogout 
+  onLogout,
+  cartItemsCount
 }) => {
   const [showAddToCartModal, setShowAddToCartModal] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [selectedImage, setSelectedImage] = useState(0);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [cartCount, setCartCount] = useState(3);
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -118,7 +118,6 @@ const ProductDetailPage = ({
       onAddToCart(product, quantity);
     }
     setShowAddToCartModal(true);
-    setCartCount(prev => prev + quantity);
   };
 
   const handleBuyNow = () => {
@@ -269,7 +268,7 @@ const ProductDetailPage = ({
                   style={{ transition: 'transform 0.2s' }}
                 >
                   <FaShoppingCart style={{ fontSize: "24px", color: mainColor }} />
-                  {cartCount > 0 && (
+                  {Number(cartItemsCount || 0) > 0 && (
                     <span 
                       className="badge rounded-pill position-absolute top-0 start-100 translate-middle"
                       style={{ 
@@ -283,7 +282,7 @@ const ProductDetailPage = ({
                         justifyContent: 'center'
                       }}
                     >
-                      {cartCount}
+                      {Number(cartItemsCount || 0)}
                     </span>
                   )}
                 </div>
