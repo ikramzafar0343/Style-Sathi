@@ -721,8 +721,12 @@ class AdminAnalyticsView(APIView):
             'monthly': []
         }
         categories = []
-        for c in Category.objects.all()[:5]:
-            categories.append({ 'category': c.name, 'revenue': 0, 'orders': 0, 'growth': 0 })
+        from django.db.models import Sum, F, FloatField
+        for c in Category.objects.all().order_by('name'):
+            items_qs = OrderItem.objects.filter(product__category=c)
+            rev = items_qs.aggregate(total=Sum(F('price') * F('quantity'), output_field=FloatField())).get('total') or 0
+            ord_count = Order.objects.filter(items__product__category=c).distinct().count()
+            categories.append({ 'category': c.name, 'revenue': int(rev), 'orders': ord_count, 'growth': 0 })
         analytics = {
             'overview': overview,
             'revenue': revenue,

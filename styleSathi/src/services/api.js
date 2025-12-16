@@ -85,8 +85,8 @@ export const catalogApi = {
     if (resp && Array.isArray(resp.products)) return resp.products;
     return [];
   }),
-  getProduct: async () => ({}),
-  getMyProducts: async () => [],
+  getProduct: (id) => json(`/products/${id}`),
+  getMyProducts: (token) => json(`/products/mine`, { token }),
   createProduct: (token, data) => json(`/products/create`, { method: 'POST', token, body: data }),
   createProductMultipart: async (token, formData) => {
     const resp = await http.post(`/products/create`, formData, {
@@ -153,7 +153,22 @@ export const tryonApi = {
 export const getProductImageUrl = (p) => {
   const u = (p && (p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl)) || '';
   const r = resolveAssetUrl(u);
-  if (r) return r;
+  if (r) {
+    try {
+      const s = String(r);
+      if (/^https?:\/\/res\.cloudinary\.com\//.test(s)) {
+        const idx = s.indexOf('/upload/');
+        if (idx !== -1) {
+          const head = s.slice(0, idx + 8);
+          const tail = s.slice(idx + 8);
+          if (!/^f_auto|q_auto|w_\d+/.test(tail)) {
+            return head + 'f_auto,q_auto,w_600/' + tail;
+          }
+        }
+      }
+    } catch { /* noop */ }
+    return r;
+  }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
     <rect width="100%" height="100%" fill="#eeeeee"/>
     <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#666666" font-size="28" font-family="Arial, Helvetica, sans-serif">Product Image</text>

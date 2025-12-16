@@ -117,8 +117,10 @@ const ProductListingPage = ({
   const filteredProducts = products
     .filter(product => {
       // Category filter
-      const catName = typeof product.category === 'string' ? product.category : product.category?.name;
-      if (selectedCategoryFilter !== 'All Categories' && catName !== selectedCategoryFilter) return false;
+      const catNameRaw = typeof product.category === 'string' ? product.category : product.category?.name;
+      const catName = String(catNameRaw || '').toLowerCase();
+      const sel = String(selectedCategoryFilter || '').toLowerCase();
+      if (sel !== 'all categories' && catName !== sel) return false;
       
       // Brand filter
       if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
@@ -160,7 +162,17 @@ const ProductListingPage = ({
   }
 
   const getCategoryOptions = () => {
-    return categoryOptions.length ? categoryOptions : ['All Categories'];
+    const derived = Array.from(new Set(
+      (allProductsForCounts.length ? allProductsForCounts : products)
+        .map((p) => {
+          const cat = p.category;
+          return typeof cat === 'string' ? cat : (cat?.name || cat?.title || '');
+        })
+        .filter(Boolean)
+        .map((s) => String(s))
+    ));
+    const merged = Array.from(new Set([...categoryOptions, ...derived]));
+    return ['All Categories', ...merged];
   }
 
   const handleBrandToggle = (brand) => {
