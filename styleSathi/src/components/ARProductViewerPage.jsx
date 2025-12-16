@@ -156,10 +156,22 @@ const ARProductViewer = ({
   const productData = selectedProduct || product || internalProducts[0];
   const normalizeCategory = (c) => String(typeof c === 'string' ? c : (c?.name || '')).trim().toLowerCase();
   const allowedModes = (() => {
-    const cat = normalizeCategory(productData?.category);
-    const modes = CATEGORY_TRYON_MAP[cat] || [];
-    return modes.length ? modes : ['body'];
+    const raw = normalizeCategory(productData?.category);
+    const tokens = raw.split(/[^a-z]+/).filter(Boolean);
+    const collected = new Set();
+    tokens.forEach(t => {
+      const m = CATEGORY_TRYON_MAP[t];
+      if (m && m.length) m.forEach(x => collected.add(x));
+    });
+    if (collected.size === 0) {
+      Object.keys(CATEGORY_TRYON_MAP).forEach(k => {
+        if (raw.includes(k)) CATEGORY_TRYON_MAP[k].forEach(x => collected.add(x));
+      });
+    }
+    return collected.size ? Array.from(collected) : ['body'];
   })();
+  const effectiveMode = allowedModes.includes(tryOnMode) ? tryOnMode : allowedModes[0];
+  const modelUrl = productData ? (productData.modelGlbUrl || productData.model_glb_url) : undefined;
   useEffect(() => {
     const mv = modelViewerRef.current;
     if (!mv) return;
@@ -168,7 +180,7 @@ const ARProductViewer = ({
     mv.addEventListener('error', onErr);
     mv.addEventListener('load', onLoad);
     return () => { mv.removeEventListener('error', onErr); mv.removeEventListener('load', onLoad); };
-  }, [productData && (productData.modelGlbUrl || productData.model_glb_url)]);
+  }, [modelUrl]);
   const userName = currentUser?.name || currentUser?.username || 'Customer';
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const sketchfabUrl = (
@@ -485,7 +497,7 @@ const ARProductViewer = ({
         <TryOnBase
           overlaySrc={(productData?.modelGlbUrl || productData?.model_glb_url) ? '' : resolveAssetUrl(productData?.imageUrl || productData?.image_url || (Array.isArray(productData?.images) ? productData.images[0] : ''))}
           modelGlbUrl={resolveAssetUrl(productData?.modelGlbUrl || productData?.model_glb_url || '')}
-          mode={tryOnMode}
+          mode={effectiveMode}
           onClose={() => setShowTryOn(false)}
         />
       )}

@@ -6,6 +6,13 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        raw = (self.name or '').strip()
+        low = raw.lower()
+        if low in {'cap/hat', 'hat', 'cap'}:
+            self.name = 'Hat/Cap'
+        super().save(*args, **kwargs)
 
 class Product(models.Model):
     title = models.CharField(max_length=255)

@@ -53,6 +53,37 @@ class ProductSerializer(serializers.ModelSerializer):
                 attrs[num_field] = float(val) if num_field != 'stock' else int(val)
             except Exception:
                 pass
+        # File validations: size and type
+        request = self.context.get('request')
+        max_size = 5 * 1024 * 1024
+        allowed_image_types = {'image/png', 'image/jpeg', 'image/jpg'}
+        allowed_glb_types = {'model/gltf-binary'}
+        def _get_ct(file_obj, fallback_name=''):
+            ct = getattr(file_obj, 'content_type', '') or ''
+            if not ct and isinstance(fallback_name, str):
+                name = fallback_name.lower()
+                if name.endswith('.png'):
+                    ct = 'image/png'
+                elif name.endswith('.jpg') or name.endswith('.jpeg'):
+                    ct = 'image/jpeg'
+                elif name.endswith('.glb'):
+                    ct = 'model/gltf-binary'
+            return ct
+        if request and hasattr(request, 'FILES'):
+            imgf = request.FILES.get('image')
+            if imgf is not None:
+                if hasattr(imgf, 'size') and imgf.size > max_size:
+                    raise serializers.ValidationError({'image': 'Image file size cannot exceed 5MB'})
+                ct = _get_ct(imgf, getattr(imgf, 'name', ''))
+                if ct not in allowed_image_types:
+                    raise serializers.ValidationError({'image': 'Only PNG/JPG images are allowed'})
+            glbf = request.FILES.get('model_glb')
+            if glbf is not None:
+                if hasattr(glbf, 'size') and glbf.size > max_size:
+                    raise serializers.ValidationError({'model_glb': 'GLB file size cannot exceed 5MB'})
+                ct = _get_ct(glbf, getattr(glbf, 'name', ''))
+                if ct not in allowed_glb_types:
+                    raise serializers.ValidationError({'model_glb': 'Only GLB files are allowed'})
         return super().validate(attrs)
 
     def create(self, validated_data):

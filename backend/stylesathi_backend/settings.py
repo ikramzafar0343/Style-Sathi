@@ -3,9 +3,14 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv(BASE_DIR / '.env')
+except Exception:
+    pass
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'replace-me-in-production')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h]
 
 INSTALLED_APPS = [
@@ -21,6 +26,7 @@ INSTALLED_APPS = [
     'catalog',
     'cart',
     'orders',
+    'tryon',
     # Optional: Cloudinary
     'cloudinary',
     'cloudinary_storage',
@@ -169,6 +175,14 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'stylesathi_backend.exceptions.custom_exception_handler',
 }
 
+if DEBUG:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'].update({
+        'anon': '10000/hour',
+        'user': '100000/hour',
+        'login': '1000/minute',
+        'password_forgot': '1000/minute',
+    })
+
 from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
@@ -177,7 +191,18 @@ SIMPLE_JWT = {
 }
 
 _default_frontend = 'https://stylesathi-frontend.onrender.com'
-default_cors = 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,' + _default_frontend
+# Include common Vite ports (5173, 5174) and preview ports (4173, 4174)
+default_cors = (
+    'http://localhost:5173,'
+    'http://127.0.0.1:5173,'
+    'http://localhost:5174,'
+    'http://127.0.0.1:5174,'
+    'http://localhost:4173,'
+    'http://127.0.0.1:4173,'
+    'http://localhost:4174,'
+    'http://127.0.0.1:4174,'
+    + _default_frontend
+)
 CORS_ALLOWED_ORIGINS = [o for o in os.environ.get('CORS_ALLOWED_ORIGINS', default_cors).split(',') if o]
 CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', str(DEBUG)).lower() in ('1', 'true', 'yes')
 CORS_URLS_REGEX = r'^.*$'
@@ -189,7 +214,13 @@ CORS_ALLOW_HEADERS = [
 ]
 CORS_ALLOW_CREDENTIALS = os.environ.get('CORS_ALLOW_CREDENTIALS', 'False').lower() in ('1', 'true', 'yes')
 
-_csrf_default = _default_frontend + ',http://localhost:4173,http://127.0.0.1:4173'
+_csrf_default = (
+    _default_frontend
+    + ',http://localhost:4173,http://127.0.0.1:4173'
+    + ',http://localhost:4174,http://127.0.0.1:4174'
+    + ',http://localhost:5173,http://127.0.0.1:5173'
+    + ',http://localhost:5174,http://127.0.0.1:5174'
+)
 CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('CSRF_TRUSTED_ORIGINS', _csrf_default).split(',') if o]
 
 STATIC_URL = '/static/'

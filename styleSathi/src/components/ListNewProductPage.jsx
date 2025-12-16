@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import TryOnBase from './tryon/TryOnBase';
 import { catalogApi, apiOrigin } from '../services/api';
+import { cloudinaryUploadImages, cloudinaryUploadRaw } from '../services/cloudinary';
 import {
   FaArrowLeft,
   FaUpload,
@@ -242,29 +243,15 @@ const ListNewProductPage = ({
       const rawImageUrl = formData.image_url || formData.images[0]?.url || '';
       imageUrl = rawImageUrl;
       if (!imageUrl || !isValidHttpUrl(imageUrl)) {
-        imageUrl = 'https://via.placeholder.com/600x600?text=Product+Image';
-        Swal.fire({ icon: 'info', title: 'Placeholder Image', text: 'Using a placeholder image URL. Please provide a valid https image URL to display your product image.' });
+        imageUrl = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="100%" height="100%" fill="%23f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="24" fill="%23999">Product Image</text></svg>';
+        Swal.fire({ icon: 'info', title: 'Placeholder Image', text: 'Using a local placeholder image. Please provide a valid https image URL to display your product image.' });
       }
     }
     let uploadedUrls = [];
     try {
-      const cloudName = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) || (typeof window !== 'undefined' && window.CLOUDINARY_CLOUD_NAME) || '';
-      const uploadPreset = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_PRESET) || '';
-      const uploadFolder = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_FOLDER) || 'stylesathi/uploads';
       const selectedFiles = Array.isArray(formData.images) ? formData.images.map(i => i.file).filter(Boolean) : [];
-      if (cloudName && uploadPreset && selectedFiles.length > 0) {
-        for (const f of selectedFiles) {
-          if (!(f instanceof File)) continue;
-          const cu = new FormData();
-          cu.append('file', f);
-          cu.append('upload_preset', uploadPreset);
-          cu.append('folder', uploadFolder);
-          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: cu });
-          const data = await res.json();
-          if (data && (data.secure_url || data.url)) {
-            uploadedUrls.push(data.secure_url || data.url);
-          }
-        }
+      if (selectedFiles.length > 0) {
+        uploadedUrls = await cloudinaryUploadImages(selectedFiles);
         if (uploadedUrls.length > 0) {
           imageUrl = uploadedUrls[0];
           fileObj = null;
@@ -324,26 +311,16 @@ const ListNewProductPage = ({
       }
       if (glbFile instanceof File) {
         try {
-          const cloudName = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) || (typeof window !== 'undefined' && window.CLOUDINARY_CLOUD_NAME) || '';
-          const uploadPreset = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_PRESET) || '';
-          const uploadFolder = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER) || (typeof window !== 'undefined' && window.CLOUDINARY_UPLOAD_FOLDER) || 'stylesathi/uploads';
-          if (cloudName && uploadPreset) {
-            const cg = new FormData();
-            cg.append('file', glbFile);
-            cg.append('upload_preset', uploadPreset);
-            cg.append('folder', uploadFolder);
-            const resg = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: cg });
-            const datag = await resg.json();
-            if (datag && (datag.secure_url || datag.url)) {
-              fd.append('model_glb_url', datag.secure_url || datag.url);
-            } else {
-              fd.append('model_glb', glbFile, glbFile.name);
-            }
+          const glbUrl = await cloudinaryUploadRaw(glbFile);
+          if (glbUrl) {
+            fd.append('model_glb_url', glbUrl);
           } else {
             fd.append('model_glb', glbFile, glbFile.name);
+            try { await Swal.fire({ icon: 'info', title: 'Using Server Upload', text: 'Cloud upload unavailable. Falling back to server upload for GLB.' }); } catch { void 0; }
           }
-        } catch {
+        } catch (e) {
           fd.append('model_glb', glbFile, glbFile.name);
+          try { await Swal.fire({ icon: 'info', title: 'Using Server Upload', text: e?.message || 'Cloud upload failed. Falling back to server upload for GLB.' }); } catch { void 0; }
         }
       }
       try {

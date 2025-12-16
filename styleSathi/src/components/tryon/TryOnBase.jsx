@@ -11,8 +11,9 @@ const TRACK_PARAMS = {
 };
 import styleSathiLogo from '../../assets/styleSathiLogo.svg';
 import { resolveAssetUrl } from '../../services/api';
+import { computeBlend, iou } from '../../utils/geometry';
 
-const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, width = 800, height = 450, makeupColors = { lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' }, makeupIntensity = { lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 }, makeupSoftness = 0.5, applyMakeup = false }) => {
+const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, width = 800, height = 450, makeupColors = { lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' }, makeupIntensity = { lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 }, makeupSoftness = 0.5, applyMakeup = false, compensateMirror = true }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webglCanvasRef = useRef(null);
@@ -53,18 +54,6 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
   const makeupSoftnessRef = useRef(makeupSoftness);
 
   
-
-  
-
-  const iou = (a, b) => {
-    const x1 = Math.max(a.x, b.x);
-    const y1 = Math.max(a.y, b.y);
-    const x2 = Math.min(a.x + a.w, b.x + b.w);
-    const y2 = Math.min(a.y + a.h, b.y + b.h);
-    const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
-    const union = a.w * a.h + b.w * b.h - inter;
-    return union > 0 ? inter / union : 0;
-  };
 
   useEffect(() => { applyMakeupRef.current = !!applyMakeup; }, [applyMakeup]);
   useEffect(() => { makeupColorsRef.current = makeupColors || makeupColorsRef.current; }, [makeupColors]);
@@ -433,6 +422,30 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
           return Math.max(0, Math.min(1, (sum / n) / 255));
         };
         const light = getLighting();
+        const sampleRect = (cx, cy, r) => {
+          const pc = procCanvasRef.current;
+          if (!pc) return { brightness: 0.5, redness: 0, coolness: 0 };
+          const pctx2 = pc.getContext('2d');
+          const x0 = Math.max(0, Math.floor(cx - r));
+          const y0 = Math.max(0, Math.floor(cy - r));
+          const x1 = Math.min(pc.width, Math.ceil(cx + r));
+          const y1 = Math.min(pc.height, Math.ceil(cy + r));
+          let br = 0; let red = 0; let cool = 0; let count = 0;
+          const data = pctx2.getImageData(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+          for (let i = 0; i < data.length; i += 4) {
+            const R = data[i], G = data[i+1], B = data[i+2];
+            br += (R + G + B) / 3;
+            red += Math.max(0, R - G);
+            cool += Math.max(0, B - R);
+            count++;
+          }
+          if (count === 0) return { brightness: 0.5, redness: 0, coolness: 0 };
+          return {
+            brightness: Math.max(0, Math.min(1, (br / count) / 255)),
+            redness: Math.max(0, Math.min(1, (red / count) / 255)),
+            coolness: Math.max(0, Math.min(1, (cool / count) / 255)),
+          };
+        };
         const fillRegion = (pairs, color, alpha) => {
           const set = new Set();
           for (let i = 0; i < pairs.length; i++) { set.add(pairs[i][0]); set.add(pairs[i][1]); }
@@ -447,7 +460,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
           ctx.closePath();
           const soft = Math.max(0, Math.min(1, makeupSoftnessRef.current || 0));
           const blur = Math.round(soft * 8);
-          const blend = light < 0.35 ? 'screen' : (soft < 0.5 ? 'multiply' : 'soft-light');
+          const blend = computeBlend(light, soft);
           ctx.save();
           ctx.globalCompositeOperation = blend;
           ctx.filter = blur > 0 ? `blur(${blur}px)` : 'none';
@@ -506,8 +519,53 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
         
         
         const apply = applyMakeupRef.current;
-        const colors = makeupColorsRef.current || { lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' };
-        const intens = makeupIntensityRef.current || { lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 };
+        const colorsBase = makeupColorsRef.current || { lips: '#ff4d88', eyes: '#4d79ff', brows: '#8b4513', cheeks: '#ff9999' };
+        const intensBase = makeupIntensityRef.current || { lips: 0.35, eyes: 0.25, brows: 0.4, cheeks: 0.35 };
+        const li = lm[33];
+        const ri = lm[263];
+        const ml = lm[61];
+        const mr = lm[291];
+        let colors = { ...colorsBase };
+        let intens = { ...intensBase };
+        if (li && ml && ri && mr) {
+          const pc = procCanvasRef.current;
+          const sx = pc ? (pc.width / c.width) : 1;
+          const sy = pc ? (pc.height / c.height) : 1;
+          const lx = li.x * c.width * sx;
+          const ly = li.y * c.height * sy;
+          const rx = ri.x * c.width * sx;
+          const ry = ri.y * c.height * sy;
+          const mxL = ml.x * c.width * sx;
+          const myL = ml.y * c.height * sy;
+          const mxR = mr.x * c.width * sx;
+          const myR = mr.y * c.height * sy;
+          const dL = Math.hypot(mxL - lx, myL - ly);
+          const dR = Math.hypot(mxR - rx, myR - ry);
+          const leftCheek = sampleRect((lx + mxL) / 2, (ly + myL) / 2, Math.max(10, dL * 0.35));
+          const rightCheek = sampleRect((rx + mxR) / 2, (ry + myR) / 2, Math.max(10, dR * 0.35));
+          const cheeksRedness = (leftCheek.redness + rightCheek.redness) / 2;
+          const cheeksCoolness = (leftCheek.coolness + rightCheek.coolness) / 2;
+          const overallBright = light;
+          const underEyeL = sampleRect(lx, ly + Math.max(6, dL * 0.15), Math.max(6, dL * 0.20));
+          const underEyeR = sampleRect(rx, ry + Math.max(6, dR * 0.15), Math.max(6, dR * 0.20));
+          const underEyeDark = 1 - Math.min(1, (underEyeL.brightness + underEyeR.brightness) / 2);
+          const blushAdjust = Math.max(0.7, 1 - Math.max(0, cheeksRedness - 0.12) * 0.8);
+          const lipsAdjust = overallBright < 0.35 ? 1.15 : overallBright > 0.65 ? 0.9 : 1.0;
+          const foundationAdjust = overallBright < 0.35 ? 1.2 : 1.0;
+          const underEyeAdjust = Math.max(intensBase.underEye || 0, Math.min(0.8, underEyeDark * 0.6));
+          intens = {
+            ...intens,
+            cheeks: Math.max(0, Math.min(1, (intensBase.cheeks || 0) * blushAdjust)),
+            lips: Math.max(0, Math.min(1, (intensBase.lips || 0) * lipsAdjust)),
+            foundation: Math.max(0, Math.min(1, (intensBase.foundation || 0) * foundationAdjust)),
+            underEye: underEyeAdjust,
+          };
+          if (cheeksCoolness > 0.08) {
+            colors.highlight = colorsBase.highlight || '#eaf2ff';
+          } else {
+            colors.highlight = colorsBase.highlight || '#fff3cc';
+          }
+        }
         if (apply) {
           fillRegion(lips, colors.lips, Math.max(0, Math.min(1, intens.lips || 0)));
           fillRegion(leftEye, colors.eyes, Math.max(0, Math.min(1, intens.eyes || 0)));
@@ -742,6 +800,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
           ctx.save();
           ctx.translate(fmx, my);
           ctx.rotate(ang);
+          if (compensateMirror) ctx.scale(-1, 1);
           ctx.drawImage(o, -ow / 2, -oh * 0.55, ow, oh);
           ctx.restore();
         } else if (ok && mode === 'glasses' && lm && lm.length > 0) {
@@ -767,7 +826,8 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
             const my = (ly + ry) / 2;
             ctx.translate(fmx, my);
             ctx.rotate(ang);
-            ctx.drawImage(o, -ow / 2, -oh * 0.5, ow, oh);
+            if (compensateMirror) ctx.scale(-1, 1);
+            ctx.drawImage(o, -ow / 2, -oh * 0.55, ow, oh);
             ctx.restore();
           }
         } else if (ok && mode === 'hand' && hlm && hlm.length > 0) {
@@ -794,6 +854,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
           ctx.save();
           ctx.translate(fmx, my);
           ctx.rotate(ang);
+          if (compensateMirror) ctx.scale(-1, 1);
           ctx.drawImage(o, -ow / 2, -oh * 0.55, ow, oh);
           ctx.restore();
         } else if (ok && mode === 'wrist' && hlm && hlm.length > 0) {
@@ -822,6 +883,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
             ctx.save();
             ctx.translate(fwx, wyWatch);
             ctx.rotate(ang);
+            if (compensateMirror) ctx.scale(-1, 1);
             ctx.drawImage(o, -ow / 2, -oh * 0.55, ow, oh);
             ctx.restore();
           }
@@ -849,6 +911,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
             ctx.save();
             ctx.translate(fmx, yOff);
             ctx.rotate(ang);
+            ctx.scale(-1, 1);
             ctx.drawImage(o, -ow / 2, -oh * 0.6, ow, oh);
             ctx.restore();
           }
@@ -918,6 +981,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
             ctx.save();
             ctx.translate(mx, my);
             ctx.rotate(ang);
+            if (compensateMirror) ctx.scale(-1, 1);
             ctx.drawImage(o, -ow / 2, -oh * 0.55, ow, oh);
             ctx.restore();
           } else {
@@ -936,6 +1000,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
             ctx.save();
             ctx.translate(mx, my);
             ctx.rotate(ang);
+            if (compensateMirror) ctx.scale(-1, 1);
             ctx.drawImage(o, -ow / 2, -oh * 0.55, ow, oh);
             ctx.restore();
           }
@@ -1270,7 +1335,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
       }
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [mode, trackCenter, showTracking]);
+  }, [mode, trackCenter, showTracking, compensateMirror]);
 
   const stopCamera = () => {
     setRunning(false);
@@ -1407,7 +1472,7 @@ const TryOnBase = ({ overlaySrc, modelGlbUrl, mode, onClose, inline = false, wid
             if (envFallback) return envFallback;
             return 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/master/Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb';
           };
-          const src = resolveAssetUrl(modelGlbUrl);
+          const src = resolveAssetUrl(modelGlbUrl) || getFallbackUrl();
           const tryLoad = (url) => {
             loader.load(url, (g) => {
               const m = g.scene || (g.scenes && g.scenes[0]) || null;

@@ -17,6 +17,7 @@ import { GiBigDiamondRing, GiWatch, GiConverseShoe, GiTopHat, GiHairStrands } fr
 import { IoIosGlasses } from 'react-icons/io';
 import { FaPaintBrush, FaGem } from 'react-icons/fa';
 import { catalogApi, resolveAssetUrl, getProductImageUrl } from '../services/api';
+import Swal from 'sweetalert2';
 
 const HomePage = ({
   onNavigateToProducts,
@@ -54,6 +55,9 @@ const HomePage = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleFooterInfo = (label) => {
+    Swal.fire({ icon: 'info', title: label, text: 'Information will be shown here' });
+  };
   useEffect(() => {
     const load = async () => {
       try {
@@ -429,7 +433,7 @@ const HomePage = ({
                     onClick={() => onNavigateToProductDetail(product.id, product)}
                   >
                     {(() => {
-                      const imageSrc = resolveAssetUrl(product.image_url || (Array.isArray(product.images) ? product.images[0] : '') || product.imageUrl);
+                      const imageSrc = getProductImageUrl(product);
                       return (
                         <img
                           src={imageSrc || styleSathiLogo}
@@ -782,32 +786,32 @@ const HomePage = ({
             <div className="col-lg-3 col-md-6 mb-4">
               <h6 style={{ color: mainColor }} className="fw-bold mb-3">QUICK LINKS</h6>
               <div className="d-flex flex-column gap-2">
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Home</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Shop</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Categories</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">New Arrivals</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">AR Try-On</a>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => onNavigateToProducts?.(null)}>Home</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => onNavigateToProducts?.(null)}>Shop</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => onNavigateToProducts?.(null)}>Categories</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => onNavigateToProducts?.(null)}>New Arrivals</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => onNavigateToAR?.()}>AR Try-On</button>
               </div>
             </div>
 
             <div className="col-lg-3 col-md-6 mb-4">
               <h6 style={{ color: mainColor }} className="fw-bold mb-3">CUSTOMER CARE</h6>
               <div className="d-flex flex-column gap-2">
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Contact Us</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">FAQ</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Shipping Info</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Returns</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Size Guide</a>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Contact Us')}>Contact Us</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('FAQ')}>FAQ</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Shipping Info')}>Shipping Info</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Returns')}>Returns</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Size Guide')}>Size Guide</button>
               </div>
             </div>
 
             <div className="col-lg-3 col-md-6 mb-4">
               <h6 style={{ color: mainColor }} className="fw-bold mb-3">LEGAL</h6>
               <div className="d-flex flex-column gap-2">
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Privacy Policy</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Terms of Service</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Cookie Policy</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Refund Policy</a>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Privacy Policy')}>Privacy Policy</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Terms of Service')}>Terms of Service</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Cookie Policy')}>Cookie Policy</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Refund Policy')}>Refund Policy</button>
               </div>
             </div>
           </div>

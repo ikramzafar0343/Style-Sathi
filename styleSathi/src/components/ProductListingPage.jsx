@@ -59,7 +59,7 @@ const ProductListingPage = ({
       const normalized = (list || []).map((p) => ({
         ...p,
         inStock: (p?.in_stock !== undefined) ? !!p.in_stock : (Number(p?.stock || 0) > 0),
-        imageUrl: p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || p?.image || p?.imageUrl || '',
+        imageUrl: getProductImageUrl(p),
         rating: Number(p?.rating || 0),
         price: Number(p?.price || 0),
       }));
@@ -74,7 +74,7 @@ const ProductListingPage = ({
       const normalizedAll = (all || []).map((p) => ({
         ...p,
         inStock: (p?.in_stock !== undefined) ? !!p.in_stock : (Number(p?.stock || 0) > 0),
-        imageUrl: p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || p?.image || p?.imageUrl || '',
+        imageUrl: getProductImageUrl(p),
         rating: Number(p?.rating || 0),
         price: Number(p?.price || 0),
       }));

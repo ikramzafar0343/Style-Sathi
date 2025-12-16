@@ -52,42 +52,68 @@ const ViewAnalyticsPage = ({
           for (const it of items) {
             const pid = (it.product && it.product.id) || null;
             const title = (it.product && it.product.title) || '';
+            const categoryName = (() => {
+              const c = it.product && it.product.category;
+              return typeof c === 'string' ? c : (c && c.name) || '';
+            })();
             const imageUrl = (it.product && (it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : ''))) || '';
             const qty = Number(it.quantity || 0);
             const price = Number(it.price || (it.product && it.product.price) || 0);
             if (!pid) continue;
-            if (!productAgg[pid]) productAgg[pid] = { id: pid, title, imageUrl, sales: 0, revenue: 0 };
+            if (!productAgg[pid]) productAgg[pid] = { id: pid, title, category: categoryName, imageUrl, sales: 0, revenue: 0 };
             productAgg[pid].sales += qty;
             productAgg[pid].revenue += price * qty;
           }
         }
         const topProducts = Object.values(productAgg).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+        const now = Date.now();
+        const daysAgo = (n) => now - n * 24 * 60 * 60 * 1000;
+        const within = (d, startMs, endMs) => {
+          const t = new Date(String(d || '')).getTime();
+          return Number.isFinite(t) && t >= startMs && t < endMs;
+        };
+        const recentStart = daysAgo(30);
+        const recentEnd = now;
+        const prevStart = daysAgo(60);
+        const prevEnd = daysAgo(30);
+        const deliveredRecent = deliveredOrders.filter((o) => within(o.created_at, recentStart, recentEnd));
+        const deliveredPrev = deliveredOrders.filter((o) => within(o.created_at, prevStart, prevEnd));
+        const revenueRecent = deliveredRecent.reduce((sum, o) => sum + Number(o.total || 0), 0);
+        const revenuePrev = deliveredPrev.reduce((sum, o) => sum + Number(o.total || 0), 0);
+        const ordersRecent = (orders || []).filter((o) => within(o.created_at, recentStart, recentEnd)).length;
+        const ordersPrev = (orders || []).filter((o) => within(o.created_at, prevStart, prevEnd)).length;
+        const customersPrevSet = new Set(deliveredPrev.map((o) => o.email || o.full_name || ''));
+        const topProductsNormalized = topProducts.map((p) => {
+          return {
+            id: p.id,
+            name: p.title,
+            category: p.category || '',
+            sales: p.sales,
+            revenue: p.revenue,
+          };
+        });
         const calculatedData = {
           revenue: {
             total: totalRevenue,
-            growth: 0,
-            chartData: [1200, 1900, 3000, 5000, 2000, 3000, 4500],
-            previous: Math.max(0, totalRevenue - 1000)
+            growth: revenuePrev > 0 ? Math.round(((revenueRecent - revenuePrev) / revenuePrev) * 100) : 0,
+            previous: revenuePrev
           },
           orders: {
             total: ordersTotal,
-            growth: 0,
-            chartData: [10, 15, 25, 30, 20, 35, 40],
-            previous: Math.max(0, ordersTotal - 1)
+            growth: ordersPrev > 0 ? Math.round(((ordersRecent - ordersPrev) / ordersPrev) * 100) : 0,
+            previous: ordersPrev
           },
           customers: {
             total: customersSet.size,
-            growth: 0,
-            chartData: [5, 8, 12, 15, 18, 22, 25],
-            previous: Math.max(0, customersSet.size - 1)
+            growth: customersPrevSet.size > 0 ? Math.round(((customersSet.size - customersPrevSet.size) / customersPrevSet.size) * 100) : 0,
+            previous: customersPrevSet.size
           },
           products: {
             total: productsTotal,
-            growth: productsTotal > 0 ? 100 : 0,
-            chartData: [2, 3, 4, 5, 6, 7, 8],
-            previous: Math.max(0, productsTotal - 1)
+            growth: 0,
+            previous: 0
           },
-          topProducts,
+          topProducts: topProductsNormalized,
           recentActivity: (orders || []).slice(0, 5).map((o) => ({
             type: 'order',
             message: `Order ${o.id} ${o.status}`,

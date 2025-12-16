@@ -3,6 +3,7 @@ backend/venv/
 backend/**/__pycache__/
 backend/**/*.pyc
 backend/static/uploads/
+backend/media/
 backend/node_modules/
 backend/**/.cache/
 **/.cache/
@@ -20,3 +21,6 @@ styleSathi/dist-ssr/
 .idea/
 *.swp
 *.swo
+ 
+# Env files (backend)
+backend/.env

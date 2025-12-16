@@ -19,7 +19,7 @@ import {
 } from "react-icons/fa";
 import { BsStarFill } from "react-icons/bs";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
-import { catalogApi, resolveAssetUrl, getProductImageUrl } from '../services/api';
+import { catalogApi, getProductImageUrl } from '../services/api';
 
 const ShoppingCartPage = ({ 
   cartItems = [], 
@@ -73,7 +73,7 @@ const ShoppingCartPage = ({
           id: p.id,
           title: p.title,
           price: Number(p.price || 0),
-          imageUrl: resolveAssetUrl(p.image_url || p.image),
+          imageUrl: getProductImageUrl(p),
           brand: p.brand,
           rating: Number(p.rating || 0),
           category: typeof p.category === 'string' ? p.category : (p.category?.name || '')

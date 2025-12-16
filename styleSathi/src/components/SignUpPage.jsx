@@ -520,13 +520,13 @@ const SignUpScreen = ({
                 />
                 <label htmlFor="terms" className="form-check-label text-muted small">
                   I agree to STYLE SATHI's{' '}
-                  <a href="#" className="text-gold text-decoration-none">
+                  <button type="button" className="btn btn-link text-gold p-0 text-decoration-none" onClick={() => Swal.fire({ icon: 'info', title: 'Terms of Service', text: 'Terms will be shown here' })}>
                     Terms of Service
-                  </a>{' '}
+                  </button>{' '}
                   and{' '}
-                  <a href="#" className="text-gold text-decoration-none">
+                  <button type="button" className="btn btn-link text-gold p-0 text-decoration-none" onClick={() => Swal.fire({ icon: 'info', title: 'Privacy Policy', text: 'Policy will be shown here' })}>
                     Privacy Policy
-                  </a>
+                  </button>
                 </label>
                 {errors.terms && <div className="invalid-feedback d-block small">{errors.terms}</div>}
               </div>

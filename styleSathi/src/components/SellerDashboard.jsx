@@ -288,6 +288,25 @@ const SellerDashboard = ({
     action?.();
   };
 
+  const handleFooterLinkClick = (section, label) => {
+    const text = String(label || '').toLowerCase();
+    if (section === 'quick') {
+      if (text.includes('home')) { onLogoClick && onLogoClick(); return; }
+      if (onSearch) {
+        if (text.includes('shop')) { onSearch(''); return; }
+        if (text.includes('categories')) { onSearch('categories'); return; }
+        if (text.includes('new')) { onSearch('new'); return; }
+        if (text.includes('vr') || text.includes('ar')) { onSearch('ar'); return; }
+      }
+    } else if (section === 'care') {
+      Swal.fire({ icon: 'info', title: label, text: 'Support information will be shown here' });
+      return;
+    } else if (section === 'legal') {
+      Swal.fire({ icon: 'info', title: label, text: 'Policy details will be shown here' });
+      return;
+    }
+  };
+
   // Helper functions
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -766,9 +785,13 @@ const SellerDashboard = ({
             <h6 style={{ color: MAIN_COLOR }} className="fw-bold mb-3">QUICK LINKS</h6>
             <div className="d-flex flex-column gap-2">
               {footerLinks.quickLinks.map((link, index) => (
-                <a key={index} href="#" className="text-light opacity-75 text-decoration-none hover-underline">
+                <button
+                  key={index}
+                  className="btn text-start text-light opacity-75 hover-underline"
+                  onClick={() => handleFooterLinkClick('quick', link)}
+                >
                   {link}
-                </a>
+                </button>
               ))}
             </div>
           </div>
@@ -777,9 +800,13 @@ const SellerDashboard = ({
             <h6 style={{ color: MAIN_COLOR }} className="fw-bold mb-3">CUSTOMER CARE</h6>
             <div className="d-flex flex-column gap-2">
               {footerLinks.customerCare.map((link, index) => (
-                <a key={index} href="#" className="text-light opacity-75 text-decoration-none hover-underline">
+                <button
+                  key={index}
+                  className="btn text-start text-light opacity-75 hover-underline"
+                  onClick={() => handleFooterLinkClick('care', link)}
+                >
                   {link}
-                </a>
+                </button>
               ))}
             </div>
           </div>
@@ -788,9 +815,13 @@ const SellerDashboard = ({
             <h6 style={{ color: MAIN_COLOR }} className="fw-bold mb-3">LEGAL</h6>
             <div className="d-flex flex-column gap-2">
               {footerLinks.legal.map((link, index) => (
-                <a key={index} href="#" className="text-light opacity-75 text-decoration-none hover-underline">
+                <button
+                  key={index}
+                  className="btn text-start text-light opacity-75 hover-underline"
+                  onClick={() => handleFooterLinkClick('legal', link)}
+                >
                   {link}
-                </a>
+                </button>
               ))}
             </div>
           </div>

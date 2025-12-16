@@ -23,6 +23,7 @@ import {
 } from "react-icons/fa";
 import NotificationBell from './NotificationBell';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
+import Swal from 'sweetalert2';
 
 const AdminSystemSettings = ({ onBack, onLogoClick, onProfileClick, onLogout }) => {
   const [activeSection, setActiveSection] = useState('profile')
@@ -97,6 +98,14 @@ const AdminSystemSettings = ({ onBack, onLogoClick, onProfileClick, onLogout }) 
       window.dispatchEvent(new CustomEvent('admin:settings:update', { detail: next }))
     } catch (e) { console.warn('adminSettings save failed', e) }
   }
+  const handleFooterQuickLink = (label) => {
+    const t = String(label || '').toLowerCase();
+    if (t.includes('home')) { onLogoClick && onLogoClick(); return; }
+    onBack && onBack();
+  };
+  const handleFooterInfo = (label) => {
+    Swal.fire({ icon: 'info', title: label, text: 'Information will be shown here' });
+  };
   const handleSaveProfile = () => {
     const name = nameRef.current?.value || profileName
     const email = emailRef.current?.value || profileEmail
@@ -759,29 +768,29 @@ const AdminSystemSettings = ({ onBack, onLogoClick, onProfileClick, onLogout }) 
             <div className="col-lg-3 col-md-6 mb-4">
               <h6 className="text-gold fw-bold mb-3">QUICK LINKS</h6>
               <div className="d-flex flex-column gap-2">
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Home</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Shop</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Categories</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">New Arrivals</a>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterQuickLink('Home')}>Home</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterQuickLink('Shop')}>Shop</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterQuickLink('Categories')}>Categories</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterQuickLink('New Arrivals')}>New Arrivals</button>
               </div>
             </div>
 
             <div className="col-lg-3 col-md-6 mb-4">
               <h6 className="text-gold fw-bold mb-3">CUSTOMER CARE</h6>
               <div className="d-flex flex-column gap-2">
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Contact Us</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">FAQ</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Shipping Info</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Returns</a>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Contact Us')}>Contact Us</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('FAQ')}>FAQ</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Shipping Info')}>Shipping Info</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Returns')}>Returns</button>
               </div>
             </div>
 
             <div className="col-lg-3 col-md-6 mb-4">
               <h6 className="text-gold fw-bold mb-3">LEGAL</h6>
               <div className="d-flex flex-column gap-2">
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Privacy Policy</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Terms of Service</a>
-                <a href="#" className="text-light opacity-75 text-decoration-none hover-underline">Cookie Policy</a>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Privacy Policy')}>Privacy Policy</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Terms of Service')}>Terms of Service</button>
+                <button className="btn text-start text-light opacity-75 hover-underline" onClick={() => handleFooterInfo('Cookie Policy')}>Cookie Policy</button>
               </div>
             </div>
           </div>

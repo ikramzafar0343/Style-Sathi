@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import Swal from 'sweetalert2'
+import { resolveAssetUrl } from '../services/api';
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import {
   FaShoppingCart,
@@ -74,7 +75,7 @@ const OrderConfirmationPage = ({
       name: (it.product && it.product.title) || it.name || 'Item',
       price: Number(it.price || (it.product && it.product.price) || 0),
       quantity: it.quantity || 1,
-      image: (it.product && (it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : ''))) || it.image || it.image_url || '',
+      image: resolveAssetUrl((it.product && (it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : ''))) || it.image || it.image_url || ''),
       brand: (it.product && it.product.brand) || it.brand || ''
     })) : [],
     total: Number(order.total || 0),

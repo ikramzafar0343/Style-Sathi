@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import TryOnBase from './TryOnBase'
+import { tryonApi } from '../../services/api'
 
 const SkinAnalysis = ({ inline = true, width = 900, height = 500, embedViewer = true, showControls = true }) => {
   const fileRef = useRef(null)
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [live, setLive] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(true)
 
-  const analyzeLocal = async (fileOrBlob) => {
+  const analyzeLocal = useCallback(async (fileOrBlob) => {
     const url = typeof fileOrBlob === 'string' ? fileOrBlob : URL.createObjectURL(fileOrBlob)
     const img = new Image()
     const p = new Promise((resolve) => { img.onload = resolve })
@@ -19,6 +23,11 @@ const SkinAnalysis = ({ inline = true, width = 900, height = 500, embedViewer = 
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
     const id = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = id.data
+    const heat = document.createElement('canvas')
+    heat.width = canvas.width
+    heat.height = canvas.height
+    const hctx = heat.getContext('2d')
+    hctx.drawImage(canvas, 0, 0)
     const sampleRect = (x, y, w, h) => {
       const x0 = Math.max(0, Math.floor(x))
       const y0 = Math.max(0, Math.floor(y))
@@ -39,7 +48,7 @@ const SkinAnalysis = ({ inline = true, width = 900, height = 500, embedViewer = 
       }
       const rAvg = rSum / Math.max(1, n), gAvg = gSum / Math.max(1, n), bAvg = bSum / Math.max(1, n)
       const brightness = (rAvg + gAvg + bAvg) / 3 / 255
-      const redness = rAvg / Math.max(1, gAvg)
+      const redness = rAvg / Math.max(1, (gAvg + bAvg) / 2)
       const coolness = bAvg / Math.max(1, rAvg)
       const texture = varSum / Math.max(1, n) / 255
       return { brightness, redness, coolness, texture }
@@ -159,29 +168,49 @@ const SkinAnalysis = ({ inline = true, width = 900, height = 500, embedViewer = 
         pigmentation !== 'Low' ? 'Use vitamin C and SPF to even tone' : null,
       ].filter(Boolean)
     }
-    return report
-  }
+    if (showHeatmap) {
+      const drawRegion = (rect, color, intensity = 0.6) => {
+        hctx.save()
+        hctx.globalAlpha = Math.min(0.85, Math.max(0.15, intensity))
+        hctx.fillStyle = color
+        hctx.strokeStyle = '#ffffff80'
+        hctx.lineWidth = 2
+        hctx.beginPath()
+        hctx.roundRect(rect.x, rect.y, rect.w, rect.h, 10)
+        hctx.fill()
+        hctx.stroke()
+        hctx.restore()
+      }
+      drawRegion(r.nose, '#ffcc00', oiliness * 6) // T-zone oil
+      drawRegion(r.cheekL, '#ff3344', Math.max(0.15, (cl.redness - 1.0) * 2))
+      drawRegion(r.cheekR, '#ff3344', Math.max(0.15, (cr.redness - 1.0) * 2))
+      drawRegion(r.underEyeL, '#3366ff', underEyeDark * 1.5)
+      drawRegion(r.underEyeR, '#3366ff', underEyeDark * 1.5)
+      drawRegion(r.forehead, '#ffcc00', oiliness * 5)
+      drawRegion(r.chin, '#aa66ff', dryness * 3)
+      setPreviewUrl(heat.toDataURL('image/png'))
+    } else {
+      setPreviewUrl('')
 
-  const analyzeBlob = async (blob) => {
+    }
+    return report
+  }, [showHeatmap])
+
+  const analyzeBlob = useCallback(async (blob) => {
     setLoading(true)
     try {
       const fd = new FormData()
       fd.append('image', blob, 'capture.png')
-      const res = await fetch('/api/skin/analyze', { method: 'POST', body: fd })
-      if (res.ok) {
-        const json = await res.json()
-        setReport(json)
-      } else {
-        const local = await analyzeLocal(blob)
-        setReport(local)
-      }
+      const json = await tryonApi.analyzeSkin(fd)
+      setReport(json)
+      if (json && json.overlay) setPreviewUrl(json.overlay)
     } catch {
       const local = await analyzeLocal(blob)
       setReport(local)
     } finally {
       setLoading(false)
     }
-  }
+  }, [analyzeLocal])
 
   const onAnalyze = async () => {
     const file = fileRef.current?.files?.[0]
@@ -196,6 +225,19 @@ const SkinAnalysis = ({ inline = true, width = 900, height = 500, embedViewer = 
     if (!blob) return
     await analyzeBlob(blob)
   }
+  useEffect(() => {
+    let id = 0
+    const tick = async () => {
+      if (!live || loading) return
+      const canvas = document.getElementById('tryon-canvas')
+      if (!canvas) return
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      if (!blob) return
+      await analyzeBlob(blob)
+    }
+    if (live) { id = window.setInterval(tick, 2500) }
+    return () => { if (id) window.clearInterval(id) }
+  }, [live, loading, analyzeBlob])
 
   useEffect(() => { /* no auto capture */ }, [])
 
@@ -212,12 +254,22 @@ const SkinAnalysis = ({ inline = true, width = 900, height = 500, embedViewer = 
             <input ref={fileRef} type="file" accept="image/*" className="form-control" style={{ maxWidth: '320px' }} />
             <button className="btn btn-primary" onClick={onAnalyze} disabled={loading}>{loading ? 'Analyzing...' : 'Analyze Image'}</button>
             <button className="btn btn-outline-primary" onClick={onCaptureAnalyze} disabled={loading}>Capture from Camera</button>
+            <button className={`btn ${live ? 'btn-danger' : 'btn-outline-secondary'}`} onClick={() => setLive(v => !v)} disabled={loading}>{live ? 'Stop Live' : 'Live Analyze'}</button>
+            <div className="form-check ms-2">
+              <input className="form-check-input" type="checkbox" checked={showHeatmap} onChange={(e) => setShowHeatmap(e.target.checked)} id="showHeatmapCheck" />
+              <label className="form-check-label" htmlFor="showHeatmapCheck">Heatmap</label>
+            </div>
           </div>
         )}
         {report && (
           <div className="mt-3 card">
             <div className="card-body">
               <h6>Skin Report</h6>
+              {previewUrl && (
+                <div className="mb-3">
+                  <img src={previewUrl} alt="analysis overlay" className="rounded" style={{ maxWidth: '100%', border: '1px solid #eee' }} />
+                </div>
+              )}
               <div>Skin Type: {report.skin_type}</div>
               <div>Texture: {report.texture}</div>
               <div>Pores: {report.pores}</div>

@@ -11,7 +11,7 @@ import JewelryTryon from './tryon/JewelryTryon'
 import HairTryon from './tryon/HairTryon'
 import SkinAnalysis from './tryon/SkinAnalysis'
 import TryOnBase from './tryon/TryOnBase'
-import { catalogApi, resolveAssetUrl } from '../services/api'
+import { catalogApi, resolveAssetUrl, getProductImageUrl } from '../services/api';
 
 const MODE_CATEGORY_MAP = {
   glasses: 'Glasses',
@@ -19,13 +19,13 @@ const MODE_CATEGORY_MAP = {
   hair: 'Hair',
   skin: 'Skin',
   jewelry: 'Jewelry',
-  hat: ['Hat', 'Cap'],
+  hat: ['Hat/Cap'],
   hand: 'Rings',
   wrist: 'Watches',
   feet: 'Shoes',
 }
 
-const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccountSettings, cartItemsCount = 0 }) => {
+const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccountSettings, cartItemsCount = 0, onNavigateToProductDetail }) => {
   const [mode, setMode] = useState('glasses')
   const [_items, setItems] = useState([])
   const [selected, _setSelected] = useState(null)
@@ -72,7 +72,7 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
           .map((p) => ({
             id: p.id,
             title: p.title || p.name,
-            imageUrl: resolveAssetUrl(p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || ''),
+            imageUrl: getProductImageUrl(p),
             modelGlbUrl: resolveAssetUrl(p.model_glb_url || ''),
           }))
         if (arr.length > 0) { setItems(arr); return }
@@ -91,8 +91,7 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
 
   const overlaySrc = selected && !selected.modelGlbUrl ? (selected.imageUrl || '') : ''
   const modelGlbUrl = selected && selected.modelGlbUrl ? selected.modelGlbUrl : ''
-  const hatTestGlb = '/static/uploads/product_6_nmah-2018_0055_02-rendon_hat-150k-4096_std.glb'
-  const modelGlbUrlForMode = mode === 'hat' ? (selected?.modelGlbUrl || hatTestGlb) : modelGlbUrl
+  const modelGlbUrlForMode = selected?.modelGlbUrl || modelGlbUrl || ''
 
   const applyMakeupToPhoto = async () => {
     if (!photoFile) return
@@ -290,22 +289,55 @@ const TryOnStudio = ({ onBack, currentUser, onNavigateToCart, onNavigateToAccoun
                   )}
                 </div>
                 <div className="mt-3">
-                  <div className="d-flex overflow-auto gap-3 py-2">
-                    {_items.map((it) => (
-                      <div key={it.id} className="card border-0 shadow-sm" style={{ minWidth: '180px', borderRadius: '12px' }} onClick={() => _setSelected(it)}>
-                        <div className="card-body">
-                          {it.imageUrl ? (
-                            <img src={it.imageUrl} alt={it.title} className="rounded mb-2" style={{ width: '100%', height: '100px', objectFit: 'cover', border: `2px solid ${secondaryColor}30` }} />
-                          ) : (
-                            <div className="rounded d-flex align-items-center justify-content-center mb-2" style={{ width: '100%', height: '100px', backgroundColor: `${secondaryColor}20`, border: `2px solid ${secondaryColor}30` }}>
-                              <IoIosGlasses style={{ color: secondaryColor }} />
+                  {_items.length > 0 ? (
+                    <div className="d-flex overflow-auto gap-3 py-2">
+                      {_items.map((it) => (
+                        <div
+                          key={it.id}
+                          className="card border-0 shadow-sm"
+                          style={{ minWidth: '220px', borderRadius: '14px', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                          onClick={() => { if (typeof onNavigateToProductDetail === 'function') onNavigateToProductDetail(it.id); }}
+                          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.12)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 0 0 rgba(0,0,0,0.0)'; }}
+                        >
+                          <div className="card-body p-2">
+                            <div className="position-relative mb-2">
+                              {it.imageUrl ? (
+                                <img
+                                  src={it.imageUrl}
+                                  alt={it.title}
+                                  className="rounded"
+                                  style={{ width: '100%', height: '110px', objectFit: 'cover', border: `2px solid ${secondaryColor}30` }}
+                                />
+                              ) : (
+                                <div
+                                  className="rounded d-flex align-items-center justify-content-center"
+                                  style={{ width: '100%', height: '110px', backgroundColor: `${secondaryColor}20`, border: `2px solid ${secondaryColor}30` }}
+                                >
+                                  <IoIosGlasses style={{ color: secondaryColor }} />
+                                </div>
+                              )}
+                              <button
+                                className="btn btn-sm position-absolute bottom-0 end-0 m-2"
+                                style={{ backgroundColor: mainColor, color: '#fff', borderRadius: '10px' }}
+                                onClick={(e) => { e.stopPropagation(); _setSelected(it); }}
+                                title="View in camera"
+                              >
+                                View
+                              </button>
                             </div>
-                          )}
-                          <div className="small fw-semibold" style={{ color: mainColor }}>{it.title}</div>
+                            <div className="small fw-semibold text-truncate" style={{ color: mainColor }} title={it.title}>
+                              {it.title}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted py-3" style={{ border: `1px dashed ${secondaryColor}30`, borderRadius: '12px' }}>
+                      No products found for this category
+                    </div>
+                  )}
                 </div>
                 {mode === 'skin' && (
                   <div className="mt-3 card">

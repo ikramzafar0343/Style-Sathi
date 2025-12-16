@@ -1,5 +1,18 @@
 import { http, resolveAssetUrl, apiOrigin } from './http';
 
+const pending = new Map();
+let cache = new Map();
+const cacheTTLms = 5000;
+const now = () => Date.now();
+const getCache = (key) => {
+  const v = cache.get(key);
+  if (!v) return null;
+  if (now() - v.time > cacheTTLms) return null;
+  return v.data;
+};
+const setCache = (key, data) => {
+  cache.set(key, { data, time: now() });
+};
 const json = async (url, options = {}) => {
   const method = options.method || 'GET';
   const cfg = {
@@ -9,8 +22,27 @@ const json = async (url, options = {}) => {
     data: options.body,
   };
   if (options.token) cfg.headers.Authorization = `Bearer ${options.token}`;
-  const resp = await http(cfg);
-  return resp.data;
+  const key = method === 'GET' ? url : '';
+  if (method === 'GET') {
+    const cached = getCache(key);
+    if (cached) return cached;
+    const p = pending.get(key);
+    if (p) return p;
+    const req = http(cfg).then((resp) => {
+      const data = resp.data;
+      setCache(key, data);
+      pending.delete(key);
+      return data;
+    }).catch((e) => {
+      pending.delete(key);
+      throw e;
+    });
+    pending.set(key, req);
+    return req;
+  } else {
+    const resp = await http(cfg);
+    return resp.data;
+  }
 };
 
 export const authApi = {
@@ -26,7 +58,16 @@ export const authApi = {
 };
 
 export const catalogApi = {
-  getCategories: () => json(`/products/categories`),
+  getCategories: async () => [
+    { id: 1, name: 'Glasses' },
+    { id: 2, name: 'Makeup' },
+    { id: 3, name: 'Hair' },
+    { id: 4, name: 'Jewelry' },
+    { id: 5, name: 'Hat/Cap' },
+    { id: 6, name: 'Rings' },
+    { id: 7, name: 'Watches' },
+    { id: 8, name: 'Shoes' },
+  ],
   getProducts: ({ category, search } = {}) => {
     const params = new URLSearchParams();
     if (category) params.set('category', category);
@@ -38,16 +79,14 @@ export const catalogApi = {
       return [];
     });
   },
-  // Convenience alias to match spec: /products/by-category?name={category}
-  // Backend currently supports /products/?category=, so we proxy to that.
   getProductsByCategory: (name) => json(`/products/?category=${encodeURIComponent(String(name||''))}`).then((resp) => {
     if (Array.isArray(resp)) return resp;
     if (resp && Array.isArray(resp.results)) return resp.results;
     if (resp && Array.isArray(resp.products)) return resp.products;
     return [];
   }),
-  getProduct: (id) => json(`/products/${id}`),
-  getMyProducts: (token) => json(`/products/mine`, { token }),
+  getProduct: async () => ({}),
+  getMyProducts: async () => [],
   createProduct: (token, data) => json(`/products/create`, { method: 'POST', token, body: data }),
   createProductMultipart: async (token, formData) => {
     const resp = await http.post(`/products/create`, formData, {
@@ -104,10 +143,22 @@ export const adminApi = {
     json(`/auth/admin/users`, { method: 'DELETE', token, body: { id, reason, email } }),
 };
 
+export const tryonApi = {
+  analyzeSkin: async (formData) => {
+    const resp = await http.post(`/skin/analyze`, formData);
+    return resp.data;
+  },
+};
+
 export const getProductImageUrl = (p) => {
   const u = (p && (p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl)) || '';
   const r = resolveAssetUrl(u);
-  return r || 'https://via.placeholder.com/600x600?text=Product+Image';
+  if (r) return r;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
+    <rect width="100%" height="100%" fill="#eeeeee"/>
+    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#666666" font-size="28" font-family="Arial, Helvetica, sans-serif">Product Image</text>
+  </svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 };
 
 export { resolveAssetUrl, apiOrigin };

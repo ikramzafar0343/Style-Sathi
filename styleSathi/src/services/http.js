@@ -10,12 +10,21 @@ const port = (typeof import.meta !== 'undefined' && import.meta.env && import.me
 const protocol = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PROTOCOL) || 'http';
 const IS_DEV = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
 let baseOverride = baseOverrideRaw;
-if (!IS_DEV && typeof baseOverrideRaw === 'string' && baseOverrideRaw.includes('onrender.com')) {
+if (typeof baseOverrideRaw === 'string' && /(^|\\.)railway\\.app/i.test(baseOverrideRaw)) {
   baseOverride = '';
 }
-let BASE_URL = baseOverride || (IS_DEV ? `${protocol}://${normalizedHost}:${port}/api` : 'https://stylesathi-backend.onrender.com/api');
+let BASE_URL = (() => {
+  if (IS_DEV) return `${protocol}://${normalizedHost}:${port}/api`;
+  if (typeof baseOverride === 'string' && baseOverride.trim()) return baseOverride.trim();
+  if (typeof window !== 'undefined' && window.location && window.location.origin) return `${window.location.origin}/api`;
+  return `${protocol}://${normalizedHost}:${port}/api`;
+})();
 
 export const http = axios.create({
+  baseURL: BASE_URL,
+});
+
+const refreshHttp = axios.create({
   baseURL: BASE_URL,
 });
 
@@ -42,8 +51,7 @@ http.interceptors.request.use((config) => {
     method === 'get' && (
       /^\/products\/?(\?.*)?$/.test(url) ||
       /^\/products\/categories$/.test(url) ||
-      /^\/products\/\d+$/.test(url) ||
-      /^\/orders\/public\//.test(url)
+      /^\/products\/\d+$/.test(url)
     )
   );
   const isAuthEndpoint = /^\/auth\//.test(url);
@@ -70,7 +78,7 @@ http.interceptors.response.use(
         try {
           if (!isRefreshing) {
             isRefreshing = true;
-            refreshPromise = axios.post(`${BASE_URL.replace(/\/$/, '')}/auth/refresh`, { refresh });
+            refreshPromise = refreshHttp.post(`/auth/refresh`, { refresh });
           }
           const res = await refreshPromise;
           const newTokens = res?.data?.tokens || null;
@@ -80,7 +88,7 @@ http.interceptors.response.use(
             original._retry = true;
             return http(original);
           }
-        } catch (e) {
+        } catch {
           try { await Swal.fire({ icon: 'warning', title: 'Session expired', text: 'Please log in again.' }); } catch { void 0; }
           setTokens(null);
         } finally {
@@ -105,6 +113,9 @@ export const resolveAssetUrl = (u) => {
   if (!s) return null;
   if (s.startsWith('http://') || s.startsWith('https://')) return s;
   const IS_DEV_LOCAL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) || false;
-  if (IS_DEV_LOCAL && (s.startsWith('/static') || s.startsWith('/media'))) return s;
+  if (IS_DEV_LOCAL && (s.startsWith('/static') || s.startsWith('/media'))) {
+    const m = s.startsWith('/static/uploads/') ? s.replace('/static/uploads/', '/media/uploads/') : s;
+    return m;
+  }
   return `${apiOrigin}${s.startsWith('/') ? '' : '/'}${s}`;
 };

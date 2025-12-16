@@ -39,7 +39,7 @@ const AdminContentModeration = lazy(() => import('./components/AdminContentModer
 import AdminProductManagement from './components/AdminProductManagement';
  
 
-import { cartApi, ordersApi, catalogApi } from './services/api';
+import { cartApi, ordersApi, catalogApi, resolveAssetUrl } from './services/api';
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -125,7 +125,7 @@ const App = () => {
           name: it.product.title,
           price: Number(it.product.price),
           quantity: it.quantity,
-          image: it.product.image_url,
+          image: resolveAssetUrl(it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : '')),
           brand: it.product.brand,
           cartItemId: it.id,
         }));
@@ -202,7 +202,7 @@ const App = () => {
             name: it.product.title,
             price: Number(it.product.price),
             quantity: it.quantity,
-            image: it.product.image_url,
+            image: resolveAssetUrl(it.product.image_url || (Array.isArray(it.product.images) ? it.product.images[0] : '')),
             brand: it.product.brand,
             cartItemId: it.id,
           }));
@@ -765,6 +765,7 @@ const App = () => {
             onNavigateToCart={navigateToCart}
             onNavigateToAccountSettings={navigateToCustomerAccountSettings}
             cartItemsCount={cartItems.length}
+            onNavigateToProductDetail={navigateToProductDetail}
           />
         );
       case 'customer-account-settings':
