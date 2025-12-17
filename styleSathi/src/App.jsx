@@ -18,6 +18,7 @@ import TrackOrderPage from './components/TrackOrderPage';
 import ARProductViewer from './components/ARProductViewerPage';
 import TryOnStudio from './components/TryOnStudio';
 import CustomerAccountSetting from './components/CustomerAccountSetting';
+import CartDrawer from './components/ui/CartDrawer';
 
 // Seller Components
 const ManageInventory = lazy(() => import('./components/ManageInventory'));
@@ -85,10 +86,12 @@ const App = () => {
   const [trackedOrderId, setTrackedOrderId] = useState(null);
   const [vrProducts, setVrProducts] = useState(null);
  
-  
+ 
 
   
 
+  const [showCartDrawer, setShowCartDrawer] = useState(false);
+  const [cartToast, setCartToast] = useState(null);
  
 
   // Save to localStorage when state changes
@@ -234,7 +237,7 @@ const App = () => {
     setCurrentPage('product-detail');
   };
 
-  const navigateToCart = () => setCurrentPage('cart');
+  const navigateToCart = () => setShowCartDrawer(true);
   const navigateToCheckout = () => setCurrentPage('checkout');
   const navigateToTrackOrder = (id = null) => {
     if (id) {
@@ -416,6 +419,8 @@ const App = () => {
     } else {
       setCartItems([...cartItems, localItem]);
     }
+    setCartToast({ name: localItem.name });
+    setTimeout(() => setCartToast(null), 2500);
     const numericId = Number(product.id);
     if (authTokens?.access && Number.isFinite(numericId)) {
       const added = await cartApi.addItem(authTokens.access, { product_id: numericId, quantity: qty }).catch(() => null);
@@ -790,7 +795,58 @@ const App = () => {
     }
   };
 
-  return <div className="App"><ErrorBoundary><Suspense fallback={<div className="p-4 text-center text-muted">Loading…</div>}>{renderCurrentPage()}</Suspense></ErrorBoundary></div>;
+  return (
+    <div className="App">
+      <ErrorBoundary>
+        <Suspense fallback={<div className="p-4 text-center text-muted">Loading…</div>}>
+          {renderCurrentPage()}
+        </Suspense>
+      </ErrorBoundary>
+      <CartDrawer
+        show={showCartDrawer}
+        items={cartItems}
+        onClose={() => setShowCartDrawer(false)}
+        onUpdateCart={handleUpdateCart}
+        onNavigateToCartPage={() => setCurrentPage('cart')}
+        onNavigateToCheckout={navigateToCheckout}
+      />
+      {cartToast && (
+        <div 
+          className="position-fixed bottom-0 end-0 m-4 p-3 rounded shadow-lg"
+          style={{ 
+            backgroundColor: '#ffffff', 
+            color: '#333',
+            border: '1px solid #e9ecef',
+            zIndex: 1060,
+            minWidth: '320px'
+          }}
+        >
+          <div className="d-flex align-items-center justify-content-between gap-3">
+            <div className="me-3">
+              <div className="fw-semibold" style={{ color: '#2c3e50' }}>Added to cart</div>
+              <div className="small" style={{ color: '#6c757d' }}>{cartToast.name}</div>
+            </div>
+            <div className="d-flex gap-2">
+              <button 
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setCartToast(null)}
+                style={{ borderRadius: '6px' }}
+              >
+                Dismiss
+              </button>
+              <button 
+                className="btn btn-sm"
+                onClick={() => { setShowCartDrawer(true); setCartToast(null); }}
+                style={{ backgroundColor: '#2c67c4', color: 'white', borderRadius: '6px' }}
+              >
+                Open Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default App;

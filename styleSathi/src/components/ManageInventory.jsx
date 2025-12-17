@@ -26,7 +26,10 @@ import {
   FaDownload,
   FaUpload
 } from 'react-icons/fa';
-import { catalogApi, getProductImageUrl, ordersApi, resolveAssetUrl } from '../services/api';
+import { catalogApi, getProductImageUrl, ordersApi } from '../services/api';
+import CloudinaryImage from './ui/CloudinaryImage';
+import InventoryTable from './ui/InventoryTable';
+import ProductForm from './ui/ProductForm';
  
 import NotificationBell from './NotificationBell';
 
@@ -639,12 +642,11 @@ const ManageInventory = ({
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-start mb-3">
                   <div className="d-flex align-items-center gap-3">
-                    <img
-                      src={resolveAssetUrl(product.image)}
+                    <CloudinaryImage
+                      src={product.image}
                       alt={product.name}
                       className="rounded"
                       style={{ width: '60px', height: '60px', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }}
                     />
                     <div>
                       <h6 className="fw-semibold mb-1">{product.name}</h6>
@@ -746,189 +748,22 @@ const ManageInventory = ({
 
   // Render product table for table view
   const renderProductTable = () => (
-    <div className="table-responsive">
-      <table className="table table-hover mb-0">
-        <thead className="table-light">
-          <tr>
-            <th className="ps-4" style={{ width: '50px' }}>
-              <input
-                type="checkbox"
-                checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
-                onChange={toggleSelectAll}
-                className="form-check-input"
-              />
-            </th>
-            <th 
-              className="cursor-pointer"
-              onClick={() => handleSort('name')}
-            >
-              Product {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </th>
-            <th>SKU</th>
-            <th>Category</th>
-            <th 
-              className="cursor-pointer"
-              onClick={() => handleSort('price')}
-            >
-              Price {sortConfig.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </th>
-            <th 
-              className="cursor-pointer"
-              onClick={() => handleSort('stock')}
-            >
-              Stock {sortConfig.key === 'stock' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </th>
-            <th>Status</th>
-            <th 
-              className="cursor-pointer"
-              onClick={() => handleSort('sales')}
-            >
-              Sales {sortConfig.key === 'sales' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </th>
-            <th 
-              className="cursor-pointer"
-              onClick={() => handleSort('revenue')}
-            >
-              Revenue {sortConfig.key === 'revenue' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </th>
-            <th className="pe-4">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedProducts.map((product) => {
-            const statusBadge = getStatusBadge(product.status, product.stock);
-            const stockBadge = getStockBadge(product.stock);
-            const StatusIcon = statusBadge.icon;
-            
-            return (
-              <tr key={product.id}>
-                <td className="ps-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedProducts.has(product.id)}
-                    onChange={() => toggleProductSelection(product.id)}
-                    className="form-check-input"
-                  />
-                </td>
-                <td>
-                  <div className="d-flex align-items-center gap-3">
-                    <img
-                      src={resolveAssetUrl(product.image)}
-                      alt={product.name}
-                      className="rounded"
-                      style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }}
-                    />
-                    <div>
-                      <h6 className="fw-semibold mb-1">{product.name}</h6>
-                      <small className="text-muted">{product.brand}</small>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <code>{product.sku}</code>
-                </td>
-                <td>
-                  <span 
-                    className="badge text-uppercase"
-                    style={{ 
-                      backgroundColor: `${mainColor}15`,
-                      color: mainColor
-                    }}
-                  >
-                    {product.category}
-                  </span>
-                </td>
-                <td>
-                  <div>
-                    <strong style={{ color: secondaryColor }}>
-                      ${product.price.toFixed(2)}
-                    </strong>
-                    {product.originalPrice > product.price && (
-                      <div>
-                        <small className="text-muted text-decoration-line-through">
-                          ${product.originalPrice.toFixed(2)}
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <div className="d-flex align-items-center gap-2">
-                    <span className={`badge ${stockBadge.class}`}>
-                      {stockBadge.text}
-                    </span>
-                    <span className="fw-semibold">{product.stock}</span>
-                    <div className="d-flex gap-1">
-                      <button
-                        className="btn btn-sm btn-outline-primary p-1 rounded-circle d-flex align-items-center justify-content-center"
-                        style={{ width: '28px', height: '28px' }}
-                        onClick={() => updateStock(product.id, product.stock - 1)}
-                        disabled={product.stock <= 0}
-                      >
-                        <FaMinus size={10} />
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-primary p-1 rounded-circle d-flex align-items-center justify-content-center"
-                        style={{ width: '28px', height: '28px' }}
-                        onClick={() => updateStock(product.id, product.stock + 1)}
-                      >
-                        <FaPlus size={10} />
-                      </button>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span className={`badge ${statusBadge.class} d-flex align-items-center gap-1`}>
-                    <StatusIcon size={10} />
-                    {statusBadge.text}
-                  </span>
-                </td>
-                <td>
-                  <div className="d-flex align-items-center gap-2">
-                    <strong>{product.sales}</strong>
-                    <FaChartLine size={12} className="text-success" />
-                  </div>
-                </td>
-                <td>
-                  <strong style={{ color: secondaryColor }}>
-                    ${product.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </strong>
-                </td>
-                <td className="pe-4">
-                  <div className="d-flex gap-1">
-                    <button
-                      className="btn btn-sm btn-outline-primary p-2 rounded-circle d-flex align-items-center justify-content-center"
-                      style={{ width: '36px', height: '36px' }}
-                      onClick={() => handleEdit(product)}
-                      title="Edit product"
-                    >
-                      <FaEdit size={14} />
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-secondary p-2 rounded-circle d-flex align-items-center justify-content-center"
-                      style={{ width: '36px', height: '36px' }}
-                      onClick={() => handleToggleStatus(product.id)}
-                      title={product.status === 'active' ? 'Deactivate' : 'Activate'}
-                    >
-                      {product.status === 'active' ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger p-2 rounded-circle d-flex align-items-center justify-content-center"
-                      style={{ width: '36px', height: '36px' }}
-                      onClick={() => handleDelete(product.id)}
-                      title="Delete product"
-                    >
-                      <FaTrash size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <InventoryTable
+      products={sortedProducts}
+      selectedProducts={selectedProducts}
+      sortConfig={sortConfig}
+      mainColor={mainColor}
+      secondaryColor={secondaryColor}
+      onSort={handleSort}
+      onToggleSelectAll={toggleSelectAll}
+      onToggleSelection={toggleProductSelection}
+      updateStock={updateStock}
+      onEdit={handleEdit}
+      onToggleStatus={handleToggleStatus}
+      onDelete={handleDelete}
+      getStatusBadge={getStatusBadge}
+      getStockBadge={getStockBadge}
+    />
   );
 
   return (
@@ -1249,193 +1084,17 @@ const ManageInventory = ({
                 ></button>
               </div>
               <div className="modal-body">
-                <div className="row">
-                  <div className="col-md-4 text-center">
-                    <img
-                      src={editingProduct.image}
-                      alt={editingProduct.name}
-                      className="img-fluid rounded mb-3"
-                      style={{ maxHeight: '200px', objectFit: 'cover' }}
-                    />
-                    <p className="text-muted small">Product Image</p>
-                    
-                    <div className="mt-4">
-                      <h6 className="fw-semibold">Product Stats</h6>
-                      <div className="list-group list-group-flush small">
-                        <div className="list-group-item d-flex justify-content-between px-0">
-                          <span>SKU:</span>
-                          <code>{editingProduct.sku}</code>
-                        </div>
-                        <div className="list-group-item d-flex justify-content-between px-0">
-                          <span>Sales:</span>
-                          <strong>{editingProduct.sales}</strong>
-                        </div>
-                        <div className="list-group-item d-flex justify-content-between px-0">
-                          <span>Revenue:</span>
-                          <strong>${editingProduct.revenue.toLocaleString()}</strong>
-                        </div>
-                        <div className="list-group-item d-flex justify-content-between px-0">
-                          <span>Rating:</span>
-                          <strong>{editingProduct.rating} ⭐</strong>
-                        </div>
-                        <div className="list-group-item d-flex justify-content-between px-0">
-                          <span>Reviews:</span>
-                          <strong>{editingProduct.reviews}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="col-md-8">
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Product Name *</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={editFormData.title}
-                        onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
-                        placeholder="Enter product name"
-                      />
-                    </div>
-
-                    <div className="row mb-3">
-                      <div className="col-md-6">
-                        <label className="form-label fw-semibold">Current Price *</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="form-control"
-                          value={editFormData.price}
-                          onChange={(e) => setEditFormData({ ...editFormData, price: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label fw-semibold">Original Price</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="form-control"
-                          value={editFormData.originalPrice}
-                          onChange={(e) => setEditFormData({ ...editFormData, originalPrice: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="row mb-3">
-                      <div className="col-md-6">
-                        <label className="form-label fw-semibold">Brand *</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={editFormData.brand}
-                          onChange={(e) => setEditFormData({ ...editFormData, brand: e.target.value })}
-                          placeholder="Enter brand name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label fw-semibold">Category *</label>
-                        <select
-                          className="form-select"
-                          value={editFormData.category}
-                          onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
-                        >
-                          {allCategories.filter(cat => cat !== 'all').map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="row mb-3">
-                      <div className="col-md-6">
-                        <label className="form-label fw-semibold">Weight</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={editFormData.weight}
-                          onChange={(e) => setEditFormData({ ...editFormData, weight: e.target.value })}
-                          placeholder="e.g., 0.5 kg"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label fw-semibold">Dimensions</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={editFormData.dimensions}
-                          onChange={(e) => setEditFormData({ ...editFormData, dimensions: e.target.value })}
-                          placeholder="e.g., 10x5x3 cm"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Description</label>
-                      <textarea
-                        className="form-control"
-                        rows="4"
-                        value={editFormData.description}
-                        onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                        placeholder="Enter product description..."
-                      />
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Features</label>
-                      <div className="d-flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Add a feature..."
-                          value={newFeature}
-                          onChange={(e) => setNewFeature(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addFeature()}
-                        />
-                        <button
-                          className="btn"
-                          style={{ backgroundColor: mainColor, color: 'white' }}
-                          onClick={addFeature}
-                        >
-                          <FaPlus />
-                        </button>
-                      </div>
-                      <div className="d-flex flex-wrap gap-2">
-                        {editFormData.features.map((feature, index) => (
-                          <span
-                            key={index}
-                            className="badge d-flex align-items-center gap-1"
-                            style={{ backgroundColor: `${mainColor}15`, color: mainColor }}
-                          >
-                            {feature}
-                            <button
-                              type="button"
-                              className="btn btn-sm p-0"
-                              style={{ color: mainColor }}
-                              onClick={() => removeFeature(index)}
-                            >
-                              <FaTimes size={12} />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="form-check form-switch mb-3">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        checked={editFormData.inStock}
-                        onChange={(e) => setEditFormData({ ...editFormData, inStock: e.target.checked })}
-                        style={{ backgroundColor: editFormData.inStock ? mainColor : '#6c757d' }}
-                      />
-                      <label className="form-check-label fw-semibold">
-                        Product Available for Sale
-                      </label>
-                    </div>
-                  </div>
-                </div>
+                <ProductForm
+                  product={editingProduct}
+                  formData={editFormData}
+                  categories={allCategories.filter(cat => cat !== 'all')}
+                  newFeature={newFeature}
+                  mainColor={mainColor}
+                  onChange={(partial) => setEditFormData({ ...editFormData, ...partial })}
+                  onAddFeature={addFeature}
+                  onRemoveFeature={removeFeature}
+                  onNewFeatureChange={setNewFeature}
+                />
               </div>
               <div className="modal-footer">
                 <button 

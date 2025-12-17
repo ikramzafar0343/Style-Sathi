@@ -26,8 +26,9 @@ import { IoIosTrendingUp, IoIosTrendingDown } from "react-icons/io";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 
 // Import sample data
-import { catalogApi, getProductImageUrl, ordersApi } from '../services/api';
+import { catalogApi, ordersApi } from '../services/api';
 import NotificationBell from './NotificationBell';
+import CloudinaryImage from './ui/CloudinaryImage';
 
 const SellerDashboard = ({ 
   onProfileClick, 
@@ -89,7 +90,14 @@ const SellerDashboard = ({
           const sales = items.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
           const revenue = Number(o.total || 0);
           if (pid) {
-            if (!aggByProduct[pid]) aggByProduct[pid] = { id: pid, title: name, imageUrl: (first.product && first.product.image_url) || '', rating: 0, sales: 0, revenue: 0 };
+            if (!aggByProduct[pid]) {
+              const fromList = (Array.isArray(list) ? list.find((p) => p.id === pid) : null) || {};
+              const img =
+                (fromList.image_url) ||
+                (Array.isArray(fromList.images) ? fromList.images[0] : '') ||
+                ((first.product && first.product.image_url) || '');
+              aggByProduct[pid] = { id: pid, title: name, imageUrl: img, rating: 0, sales: 0, revenue: 0 };
+            }
             aggByProduct[pid].sales += sales;
             aggByProduct[pid].revenue += revenue;
           }
@@ -653,19 +661,20 @@ const SellerDashboard = ({
                   aria-label={`View analytics for ${product.title}`}
                 >
                   <div className="card-body text-center">
-                    <div className="position-relative mb-3">
-                      <img 
-                        src={getProductImageUrl(product)} 
+                    <div
+                      className="mx-auto mb-3 rounded overflow-hidden position-relative"
+                      style={{ width: '90px', height: '90px', backgroundColor: '#f8f9fa' }}
+                    >
+                      <CloudinaryImage
+                        product={product}
                         alt={product.title}
-                        className="rounded"
-                        style={{
-                          width: '80px',
-                          height: '80px',
-                          objectFit: 'cover'
-                        }}
-                        onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src=styleSathiLogo; }}
+                        className="w-100 h-100"
+                        style={{ objectFit: 'cover' }}
                       />
-                      <span className="position-absolute top-0 start-100 translate-middle badge bg-primary">
+                      <span
+                        className="position-absolute badge bg-primary"
+                        style={{ top: 0, right: 0, transform: 'translate(35%, -35%)' }}
+                      >
                         #{index + 1}
                       </span>
                     </div>

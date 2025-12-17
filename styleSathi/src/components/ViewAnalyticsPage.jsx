@@ -15,6 +15,8 @@ import {
 } from "react-icons/fa";
 import { catalogApi, ordersApi } from '../services/api';
 import { FaArrowTrendDown ,FaArrowTrendUp} from "react-icons/fa6";
+import BarChart from './ui/BarChart';
+import LineChart from './ui/LineChart';
 const ViewAnalyticsPage = ({ 
   onBack, 
   onLogoClick, 
@@ -83,6 +85,39 @@ const ViewAnalyticsPage = ({
         const ordersRecent = (orders || []).filter((o) => within(o.created_at, recentStart, recentEnd)).length;
         const ordersPrev = (orders || []).filter((o) => within(o.created_at, prevStart, prevEnd)).length;
         const customersPrevSet = new Set(deliveredPrev.map((o) => o.email || o.full_name || ''));
+        const rangeDays = timeRange === '7days' ? 7 : (timeRange === '30days' ? 30 : (timeRange === '90days' ? 90 : 365));
+        const startMs = now - rangeDays * 24 * 60 * 60 * 1000;
+        const dailyMap = {};
+        for (const o of deliveredOrders) {
+          const t = new Date(String(o.created_at || '')).getTime();
+          if (!Number.isFinite(t) || t < startMs || t > now) continue;
+          const d = new Date(t);
+          const key = d.toISOString().slice(0,10);
+          dailyMap[key] = (dailyMap[key] || 0) + Number(o.total || 0);
+        }
+        const dailySeries = [];
+        for (let i = rangeDays - 1; i >= 0; i--) {
+          const d = new Date(now - i * 24 * 60 * 60 * 1000);
+          const key = d.toISOString().slice(0,10);
+          dailySeries.push({ date: key, revenue: dailyMap[key] || 0 });
+        }
+        const monthsBack = 12;
+        const monthlyMap = {};
+        for (const o of deliveredOrders) {
+          const t = new Date(String(o.created_at || '')).getTime();
+          if (!Number.isFinite(t)) continue;
+          const d = new Date(t);
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          monthlyMap[key] = (monthlyMap[key] || 0) + Number(o.total || 0);
+        }
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const monthlySeries = [];
+        const cur = new Date(now);
+        for (let i = monthsBack - 1; i >= 0; i--) {
+          const d = new Date(cur.getFullYear(), cur.getMonth() - i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          monthlySeries.push({ month: monthNames[d.getMonth()], revenue: monthlyMap[key] || 0 });
+        }
         const topProductsNormalized = topProducts.map((p) => {
           return {
             id: p.id,
@@ -123,6 +158,10 @@ const ViewAnalyticsPage = ({
             conversionRate: 0,
             averageOrderValue: ordersTotal ? Math.round((totalRevenue / Math.max(ordersTotal, 1)) * 100) / 100 : 0,
             customerSatisfaction: 0
+          },
+          series: {
+            daily: dailySeries,
+            monthly: monthlySeries
           }
         };
         setAnalyticsData(calculatedData);
@@ -457,17 +496,15 @@ const ViewAnalyticsPage = ({
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
               <h5 className="card-title mb-4">Analytics Overview</h5>
-              <p className="text-muted">
-                Detailed charts and analytics visualization would be implemented here
-                with libraries like Chart.js or Recharts in a real application.
-              </p>
-              <div className="text-center py-4">
-                <FaChartLine size={48} className="text-muted mb-3 opacity-50" />
-                <p className="text-muted small">Interactive charts placeholder</p>
-                <small className="text-muted">
-                  Revenue trends, customer acquisition, and product performance charts
-                  would be displayed here based on the selected time range.
-                </small>
+              <div className="mb-3">
+                {timeRange === '7days' || timeRange === '30days' || timeRange === '90days'
+                  ? <LineChart data={analyticsData?.series.daily || []} valueKey="revenue" isCurrency progress={1} />
+                  : <BarChart data={analyticsData?.series.monthly || []} valueKey="revenue" labelKey="month" isCurrency progress={1} />
+                }
+              </div>
+              <div className="d-flex justify-content-between mt-2">
+                <small className="text-muted">Revenue trend</small>
+                <small className="text-muted">{timeRange === '1year' ? 'Monthly' : 'Daily'}</small>
               </div>
             </div>
           </div>

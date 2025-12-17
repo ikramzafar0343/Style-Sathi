@@ -4,15 +4,12 @@ import {
   FaUser,
   FaArrowLeft,
   FaTruck,
-  FaTrash,
   FaShieldAlt,
   FaStar,
   FaFacebookF,
   FaTwitter,
   FaInstagram,
   FaLinkedin,
-  FaPlus,
-  FaMinus,
   FaSearch,
   FaShoppingBag,
   FaSignOutAlt
@@ -20,6 +17,7 @@ import {
 import { BsStarFill } from "react-icons/bs";
 import styleSathiLogo from '../assets/styleSathiLogo.svg';
 import { catalogApi, getProductImageUrl } from '../services/api';
+import CartItemRow from './ui/CartItemRow';
 
 const ShoppingCartPage = ({ 
   cartItems = [], 
@@ -311,119 +309,71 @@ const ShoppingCartPage = ({
             <h2 className="fw-bold mb-4" style={{ color: mainColor }}>Shopping Cart ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</h2>
 
             {cartItems.map((item) => (
-              <div className="card shadow-sm border-0 mb-4" key={item.id}>
-                <div className="row g-0 p-3">
-                  <div className="col-md-3 d-flex align-items-center justify-content-center">
-                    <div className="bg-light rounded d-flex align-items-center justify-content-center w-100 overflow-hidden" style={{ height: "140px" }}>
-                      <img 
-                        src={getProductImageUrl(item)} 
-                        alt={item.title || item.name}
-                        className="img-fluid"
-                        style={{ maxHeight: "100%", objectFit: "cover" }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-9">
-                    <h5 style={{ color: mainColor, fontWeight: 'bold' }}>{item.title || item.name}</h5>
-
-                    <div className="row small text-muted mb-2">
-                      <div className="col-6"><strong>Brand:</strong> {item.brand}</div>
-                      <div className="col-6">
-                        <strong>Rating:</strong> 
-                        <span className="ms-1">
-                          {renderInteractiveStars(item.rating || 0, (r) => setItemRating(item.id, r))}
-                        </span>
-                        <span className="ms-1">({item.rating || 0})</span>
-                      </div>
-                      {item.size && (
-                        <div className="col-6"><strong>Size:</strong> {item.size}</div>
-                      )}
-                      {item.color && (
-                        <div className="col-6"><strong>Color:</strong> {item.color}</div>
-                      )}
-                      {item.condition && (
-                        <div className="col-6"><strong>Condition:</strong> {item.condition}</div>
-                      )}
-                    </div>
-
-                    <p className="mb-3 small">
-                      <FaTruck className="me-1" /> 
-                      Estimated delivery: {item.delivery || "3-5 business days"}
-                    </p>
-
-                    <div className="mt-2">
-                      <div className="mb-2 fw-semibold" style={{ color: mainColor }}>Reviews</div>
-                      {Array.isArray(item.reviews) && item.reviews.length > 0 ? (
-                        <div className="mb-2">
-                          {item.reviews.slice(0, 2).map((rev) => (
-                            <div key={rev.id} className="small mb-2">
-                              <span className="me-2">{renderStars(rev.rating || 0)}</span>
-                              <span className="text-muted">{rev.text}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="small text-muted mb-2">No reviews yet</div>
-                      )}
-                      <div className="d-flex align-items-center gap-2 mb-2">
+              <div key={item.id}>
+                <CartItemRow
+                  item={item}
+                  mainColor={mainColor}
+                  onIncrease={(id) => updateQuantity(id, 1)}
+                  onDecrease={(id) => updateQuantity(id, -1)}
+                  onRemove={removeItem}
+                />
+                <div className="px-3 mb-4">
+                  <div className="row small text-muted mb-2">
+                    <div className="col-6"><strong>Brand:</strong> {item.brand}</div>
+                    <div className="col-6">
+                      <strong>Rating:</strong> 
+                      <span className="ms-1">
                         {renderInteractiveStars(item.rating || 0, (r) => setItemRating(item.id, r))}
-                        <small className="text-muted">Your rating</small>
-                      </div>
-                      <div className="input-group">
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Write a review"
-                          value={reviewInputs[item.id] || ''}
-                          onChange={(e) => handleReviewChange(item.id, e.target.value)}
-                          style={{ borderColor: mainColor }}
-                        />
-                        <button
-                          className="btn"
-                          style={{ backgroundColor: mainColor, color: 'white' }}
-                          onClick={() => submitReview(item.id)}
-                        >
-                          Add
-                        </button>
-                      </div>
+                      </span>
+                      <span className="ms-1">({item.rating || 0})</span>
                     </div>
-
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div className="d-flex align-items-center gap-4">
-                        <h4 style={{ color: secondaryColor, fontWeight: 'bold', marginBottom: 0 }}>
-                          ${((item.price || 0) * item.quantity).toFixed(2)}
-                        </h4>
-                        {item.quantity > 1 && (
-                          <small className="text-muted">
-                            ${(item.price || 0).toFixed(2)} each
-                          </small>
-                        )}
-
-                        <div className="input-group" style={{ width: "120px" }}>
-                          <button 
-                            className="btn btn-outline-secondary" 
-                            onClick={() => updateQuantity(item.id, -1)}
-                            style={{ borderColor: mainColor, color: mainColor }}
-                          >
-                            <FaMinus />
-                          </button>
-                          <input className="form-control text-center" value={item.quantity} readOnly />
-                          <button 
-                            className="btn btn-outline-secondary" 
-                            onClick={() => updateQuantity(item.id, 1)}
-                            style={{ borderColor: mainColor, color: mainColor }}
-                          >
-                            <FaPlus />
-                          </button>
-                        </div>
+                    {item.size && (
+                      <div className="col-6"><strong>Size:</strong> {item.size}</div>
+                    )}
+                    {item.color && (
+                      <div className="col-6"><strong>Color:</strong> {item.color}</div>
+                    )}
+                    {item.condition && (
+                      <div className="col-6"><strong>Condition:</strong> {item.condition}</div>
+                    )}
+                  </div>
+                  <p className="mb-3 small">
+                    <FaTruck className="me-1" /> 
+                    Estimated delivery: {item.delivery || "3-5 business days"}
+                  </p>
+                  <div className="mt-2">
+                    <div className="mb-2 fw-semibold" style={{ color: mainColor }}>Reviews</div>
+                    {Array.isArray(item.reviews) && item.reviews.length > 0 ? (
+                      <div className="mb-2">
+                        {item.reviews.slice(0, 2).map((rev) => (
+                          <div key={rev.id} className="small mb-2">
+                            <span className="me-2">{renderStars(rev.rating || 0)}</span>
+                            <span className="text-muted">{rev.text}</span>
+                          </div>
+                        ))}
                       </div>
-
-                      <button 
-                        className="btn btn-sm btn-outline-danger" 
-                        onClick={() => removeItem(item.id)}
+                    ) : (
+                      <div className="small text-muted mb-2">No reviews yet</div>
+                    )}
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                      {renderInteractiveStars(item.rating || 0, (r) => setItemRating(item.id, r))}
+                      <small className="text-muted">Your rating</small>
+                    </div>
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Write a review"
+                        value={reviewInputs[item.id] || ''}
+                        onChange={(e) => handleReviewChange(item.id, e.target.value)}
+                        style={{ borderColor: mainColor }}
+                      />
+                      <button
+                        className="btn"
+                        style={{ backgroundColor: mainColor, color: 'white' }}
+                        onClick={() => submitReview(item.id)}
                       >
-                        <FaTrash />
+                        Add
                       </button>
                     </div>
                   </div>

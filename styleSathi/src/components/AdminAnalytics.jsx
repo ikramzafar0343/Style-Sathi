@@ -20,6 +20,8 @@ import {
 import { FaArrowTrendUp } from "react-icons/fa6";
 import { adminApi } from '../services/api';
 import NotificationBell from './NotificationBell';
+import BarChart from './ui/BarChart';
+import LineChart from './ui/LineChart';
 
  
 
@@ -85,65 +87,7 @@ const AdminAnalytics = ({ onBack, token }) => {
     }).format(amount)
   }
 
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat('en-US').format(num)
-  }
-
-  const getMaxValue = (data, key) => {
-    return Math.max(...data.map(item => item[key] || 0))
-  }
-
-  const renderBarChart = (data, maxValue, key, labelKey = 'month', isCurrency = false) => {
-    return (
-      <div className="position-relative" style={{ height: '256px' }}>
-        <div className="d-flex align-items-end justify-content-between gap-2 h-100 pb-4">
-          {data.map((item, index) => {
-            const value = (item[key] || 0) * progress
-            const height = maxValue > 0 ? (value / maxValue) * 100 : 0
-            const displayValue = isCurrency ? formatCurrency(value) : formatNumber(value)
-            
-            return (
-              <div key={index} className="flex-fill d-flex flex-column align-items-center group position-relative">
-                <div className="w-100 h-100 d-flex flex-column justify-content-end">
-                  <div className="position-relative w-100">
-                    <div
-                      className="w-100 bg-gradient-to-t from-gold to-warning rounded-top transition-all hover-bg-gold-dark cursor-pointer shadow-sm"
-                      style={{ 
-                        height: `${height}%`, 
-                        minHeight: height > 0 ? '4px' : '0',
-                        background: 'linear-gradient(to top, #c4a62c, #e9d35f)'
-                      }}
-                      title={displayValue}
-                    >
-                      <div className="position-absolute top-0 start-50 translate-middle opacity-0 group-hover-opacity-100 transition-opacity bg-dark text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                        {displayValue}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2 w-100">
-                  <span className="text-xs text-muted font-medium d-block text-center">
-                    {labelKey === 'month' 
-                      ? (item.month?.slice(0, 3) || '') 
-                      : (item.date ? new Date(item.date).getDate().toString() : '')
-                    }
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        {/* Y-axis labels */}
-        <div className="position-absolute start-0 top-0 h-100 d-flex flex-column justify-between pe-2 text-xs text-muted">
-          <span>{isCurrency ? formatCurrency(maxValue) : formatNumber(maxValue)}</span>
-          <span>{isCurrency ? formatCurrency(maxValue * 0.75) : formatNumber(Math.floor(maxValue * 0.75))}</span>
-          <span>{isCurrency ? formatCurrency(maxValue * 0.5) : formatNumber(Math.floor(maxValue * 0.5))}</span>
-          <span>{isCurrency ? formatCurrency(maxValue * 0.25) : formatNumber(Math.floor(maxValue * 0.25))}</span>
-          <span>0</span>
-        </div>
-      </div>
-    )
-  }
+  const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num)
 
   const exportDoc = () => {
     const now = new Date().toLocaleString()
@@ -338,8 +282,8 @@ const AdminAnalytics = ({ onBack, token }) => {
             </div>
             <div className="position-relative">
             {selectedPeriod === 'monthly' 
-              ? renderBarChart(revenue.monthly, getMaxValue(revenue.monthly, 'revenue'), 'revenue', 'month', true)
-              : renderBarChart(revenue.daily.slice(-30), getMaxValue(revenue.daily.slice(-30), 'revenue'), 'revenue', 'date', true)
+              ? <BarChart data={revenue.monthly} valueKey="revenue" labelKey="month" isCurrency progress={progress} />
+              : <LineChart data={revenue.daily.slice(-30)} valueKey="revenue" labelKey="date" isCurrency progress={progress} />
             }
             </div>
             <div className="mt-4 row g-2 text-xs border-top pt-3">
@@ -374,8 +318,8 @@ const AdminAnalytics = ({ onBack, token }) => {
                 </div>
                 <div className="position-relative">
                   {selectedPeriod === 'monthly'
-                    ? renderBarChart(userGrowth.monthly, getMaxValue(userGrowth.monthly, 'newUsers'), 'newUsers', 'month', false)
-                    : renderBarChart(userGrowth.daily.slice(-14), getMaxValue(userGrowth.daily.slice(-14), 'newUsers'), 'newUsers', 'date', false)
+                    ? <BarChart data={userGrowth.monthly} valueKey="newUsers" labelKey="month" progress={progress} />
+                    : <LineChart data={userGrowth.daily.slice(-14)} valueKey="newUsers" labelKey="date" progress={progress} />
                   }
                 </div>
                 <div className="mt-3 text-muted small">

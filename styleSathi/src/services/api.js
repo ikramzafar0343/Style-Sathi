@@ -150,6 +150,18 @@ export const tryonApi = {
   },
 };
 
+export const notificationsApi = {
+  list: (token) => json(`/notifications`, { token }).then((resp) => {
+    if (Array.isArray(resp)) return resp;
+    if (resp && Array.isArray(resp.results)) return resp.results;
+    if (resp && Array.isArray(resp.notifications)) return resp.notifications;
+    return [];
+  }),
+  markRead: (token, id) => json(`/notifications/read`, { method: 'POST', token, body: { id } }),
+  markAllRead: (token) => json(`/notifications/read_all`, { method: 'POST', token }),
+  clear: (token) => json(`/notifications/clear`, { method: 'POST', token }),
+};
+
 export const getProductImageUrl = (p) => {
   const u = (p && (p.image_url || (Array.isArray(p.images) ? p.images[0] : '') || p.image || p.imageUrl)) || '';
   const r = resolveAssetUrl(u);

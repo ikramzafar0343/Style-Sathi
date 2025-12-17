@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { FaBell } from 'react-icons/fa'
+import { notificationsApi } from '../services/api'
 
 const NotificationBell = ({ mainColor = '#c4a62c', secondaryColor = '#2c67c4' }) => {
   const [showPanel, setShowPanel] = useState(false)
@@ -7,6 +8,23 @@ const NotificationBell = ({ mainColor = '#c4a62c', secondaryColor = '#2c67c4' })
   const panelRef = useRef(null)
 
   useEffect(() => {
+    const load = async () => {
+      try {
+        const list = await notificationsApi.list()
+        const mapped = (Array.isArray(list) ? list : []).map((n) => ({
+          id: String(n.id || n._id || Date.now() + Math.random()),
+          type: n.type || 'info',
+          title: n.title || n.subject || 'Notification',
+          message: n.message || n.body || '',
+          time: (n.time || n.created_at || n.createdAt || '').toString(),
+          read: !!(n.read || n.is_read)
+        }))
+        setNotifications(mapped.slice(0, 100))
+      } catch {
+        setNotifications([])
+      }
+    }
+    load()
     const onPush = (e) => {
       const d = e.detail || {}
       const item = {
@@ -37,9 +55,20 @@ const NotificationBell = ({ mainColor = '#c4a62c', secondaryColor = '#2c67c4' })
   }, [])
 
   const unreadCount = notifications.filter((n) => !n.read).length
-  const markAsRead = (id) => setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  const clearAll = () => setNotifications([])
+  const markAsRead = async (id) => {
+    try { await notificationsApi.markRead(undefined, id) } catch { void 0 }
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  }
+  const markAllRead = async () => {
+    try { await notificationsApi.markAllRead() } catch { void 0 }
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    try { window.dispatchEvent(new CustomEvent('notification:markAllRead')) } catch { void 0 }
+  }
+  const clearAll = async () => {
+    try { await notificationsApi.clear() } catch { void 0 }
+    setNotifications([])
+    try { window.dispatchEvent(new CustomEvent('notification:clear')) } catch { void 0 }
+  }
 
   return (
     <div className="position-relative" ref={panelRef}>
