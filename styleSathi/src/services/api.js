@@ -4,6 +4,62 @@ const pending = new Map();
 let cache = new Map();
 const cacheTTLms = 5000;
 const now = () => Date.now();
+const stripDeleted = (arr) => {
+  const list = Array.isArray(arr) ? arr : [];
+  return list.filter((p) => {
+    const s = String(p?.status || '').toLowerCase();
+    const del = !!(p?.deleted || p?.is_deleted || s === 'deleted');
+    return !del;
+  });
+};
+const getDeletedMask = () => {
+  try {
+    const raw = localStorage.getItem('deletedProductIds');
+    const arr = raw ? JSON.parse(raw) : [];
+    const set = new Set();
+    for (const v of Array.isArray(arr) ? arr : []) set.add(String(v));
+    return set;
+  } catch {
+    return new Set();
+  }
+};
+const addDeletedMask = (id) => {
+  try {
+    const raw = localStorage.getItem('deletedProductIds');
+    const arr = raw ? JSON.parse(raw) : [];
+    const sid = String(id);
+    if (!arr.includes(sid)) {
+      arr.push(sid);
+      localStorage.setItem('deletedProductIds', JSON.stringify(arr));
+    }
+  } catch { void 0; }
+};
+const removeDeletedMask = (id) => {
+  try {
+    const raw = localStorage.getItem('deletedProductIds');
+    const arr = raw ? JSON.parse(raw) : [];
+    const sid = String(id);
+    const next = (Array.isArray(arr) ? arr : []).filter((v) => String(v) !== sid);
+    localStorage.setItem('deletedProductIds', JSON.stringify(next));
+  } catch { void 0; }
+};
+const maskProducts = (arr) => {
+  const ids = getDeletedMask();
+  const seed = new Set([
+    'RING-PREM-001',
+    'WATCH-LUX-001',
+    'GLASS-DES-001',
+    'GLASS-AR-TEST-001',
+    'GLB-SAMPLE-001',
+    'SHOE-CLASS-001',
+  ]);
+  return stripDeleted(arr).filter((p) => {
+    const idOk = !ids.has(String(p?.id));
+    const skuOk = !seed.has(String(p?.sku || '').toUpperCase());
+    const brandOk = String(p?.brand || '').toLowerCase() !== 'sample';
+    return idOk && skuOk && brandOk;
+  });
+};
 const getCache = (key) => {
   const v = cache.get(key);
   if (!v) return null;
@@ -73,20 +129,25 @@ export const catalogApi = {
     if (category) params.set('category', category);
     if (search) params.set('search', search);
     return json(`/products/?${params.toString()}`).then((resp) => {
-      if (Array.isArray(resp)) return resp;
-      if (resp && Array.isArray(resp.results)) return resp.results;
-      if (resp && Array.isArray(resp.products)) return resp.products;
+      if (Array.isArray(resp)) return maskProducts(resp);
+      if (resp && Array.isArray(resp.results)) return maskProducts(resp.results);
+      if (resp && Array.isArray(resp.products)) return maskProducts(resp.products);
       return [];
     });
   },
   getProductsByCategory: (name) => json(`/products/?category=${encodeURIComponent(String(name||''))}`).then((resp) => {
-    if (Array.isArray(resp)) return resp;
-    if (resp && Array.isArray(resp.results)) return resp.results;
-    if (resp && Array.isArray(resp.products)) return resp.products;
+    if (Array.isArray(resp)) return maskProducts(resp);
+    if (resp && Array.isArray(resp.results)) return maskProducts(resp.results);
+    if (resp && Array.isArray(resp.products)) return maskProducts(resp.products);
     return [];
   }),
   getProduct: (id) => json(`/products/${id}`),
-  getMyProducts: (token) => json(`/products/mine`, { token }),
+  getMyProducts: (token) => json(`/products/mine`, { token }).then((resp) => {
+    if (Array.isArray(resp)) return maskProducts(resp);
+    if (resp && Array.isArray(resp.results)) return maskProducts(resp.results);
+    if (resp && Array.isArray(resp.products)) return maskProducts(resp.products);
+    return [];
+  }),
   createProduct: (token, data) => json(`/products/create`, { method: 'POST', token, body: data }),
   createProductMultipart: async (token, formData) => {
     const resp = await http.post(`/products/create`, formData, {
@@ -102,10 +163,36 @@ export const catalogApi = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     });
+    removeDeletedMask(id);
     return resp.data;
   },
   updateProduct: (token, id, data) => json(`/products/${id}/manage`, { method: 'PATCH', token, body: data }),
-  deleteProduct: (token, id, reason) => json(`/products/${id}/manage`, { method: 'DELETE', token, body: reason ? { reason } : undefined }),
+  deleteProduct: async (token, id, reason) => {
+    const body = reason ? { reason } : undefined;
+    try {
+      const r = await json(`/products/${id}/manage`, { method: 'DELETE', token, body });
+      cache.clear();
+      addDeletedMask(id);
+      return r;
+    } catch (e1) {
+      try {
+        const r2 = await json(`/products/${id}`, { method: 'DELETE', token, body });
+        cache.clear();
+        addDeletedMask(id);
+        return r2;
+      } catch (e2) {
+        try {
+          const r3 = await json(`/products/${id}/manage`, { method: 'PATCH', token, body: { deleted: true, delete_reason: reason } });
+          cache.clear();
+          addDeletedMask(id);
+          return r3;
+        } catch (e3) {
+          const msg = (e3 && e3.message) || (e2 && e2.message) || (e1 && e1.message) || 'Delete failed';
+          throw new Error(msg);
+        }
+      }
+    }
+  },
 };
 
 export const cartApi = {

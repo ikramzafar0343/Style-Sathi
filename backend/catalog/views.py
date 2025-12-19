@@ -94,14 +94,14 @@ class MyProductListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Product.objects.filter(owner=self.request.user).order_by('-id')
+        return Product.objects.filter(owner=self.request.user).exclude(sku__in=SEED_SKUS).exclude(brand__iexact=SEED_BRAND).order_by('-id')
 
     def list(self, request, *args, **kwargs):
         mongo = getattr(settings, 'MONGO_DB', None)
         if mongo is not None:
             email = getattr(request.user, 'email', None)
             try:
-                docs = list(mongo['products'].find({'owner_email': email}).sort('_id', -1).limit(500))
+                docs = list(mongo['products'].find({'owner_email': email, 'brand': {'$ne': SEED_BRAND}, 'sku': {'$nin': list(SEED_SKUS)}}).sort('_id', -1).limit(500))
                 data = [product_public(d) for d in docs]
                 return Response(data)
             except Exception:

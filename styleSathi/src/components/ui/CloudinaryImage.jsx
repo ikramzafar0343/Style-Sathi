@@ -1,4 +1,3 @@
-import styleSathiLogo from '../../assets/styleSathiLogo.svg'
 import { getProductImageUrl, resolveAssetUrl } from '../../services/api'
 
 const CloudinaryImage = ({
@@ -33,7 +32,11 @@ const CloudinaryImage = ({
       style={mergedStyle}
       loading={loading}
       decoding={decoding}
-      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = styleSathiLogo }}
+      onError={(e) => {
+        e.currentTarget.onerror = null;
+        const ph = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width||200}" height="${height||200}"><rect width="100%" height="100%" fill="#f4f4f4"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-size="14" font-family="Arial, Helvetica, sans-serif">Image unavailable</text></svg>`);
+        e.currentTarget.src = ph;
+      }}
       {...rest}
     />
   )

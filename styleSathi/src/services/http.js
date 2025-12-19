@@ -111,6 +111,7 @@ export const apiOrigin = (() => {
 export const resolveAssetUrl = (u) => {
   const s = typeof u === 'string' ? u.trim() : String(u || '').trim();
   if (!s) return null;
+  if (s.startsWith('data:') || s.startsWith('blob:')) return s;
   if (s.startsWith('http://') || s.startsWith('https://')) return s;
   const needsMap = s.startsWith('/static/uploads/');
   const mapped = needsMap ? s.replace('/static/uploads/', '/media/uploads/') : s;
